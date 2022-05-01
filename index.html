@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title></title>
+    <link rel="icon" type="image/png" href="https://www.svgrepo.com/show/401080/box-christmas-delivery-gift-package-present.svg" />
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css" />
+    <link rel="stylesheet" href="https://ez-css.now.sh" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main id="app">
+      <button @click="getFetch()">Get Users</button>
+      <button @click="getStock()">Get Stock</button>
+      <h3>User n Stock</h3>
+      <form @submit.prevent="addUser">
+        <br />
+        <label for="newUser">New User</label>
+        <input
+          v-model="newUser"
+          type="text"
+          name="newUser"
+          id="newUser"
+          placeholder="Username"
+        />
+        <input
+          v-model="newPass"
+          type="password"
+          name="newPass"
+          id="newPass"
+          value=""
+          placeholder="Password"
+        />
+        <input
+          v-model="email"
+          type="text"
+          name="email"
+          id="email"
+          placeholder="E-mail"
+        />
+        <button
+          id="postButton"
+          @click="postFetch()"
+        >
+          Add
+        </button>
+        <h1 data.data></h1>
+      </form>
+      <label>Add Ballance</label>
+      <input type="text" placeholder="Username" id="username">
+      <input type="text" placeholder="Ballance" id="ballance">
+      <button @click="addBallance()">Add Ballance</button>
+
+      <label>Login</label>
+      <input type="text" placeholder="Username" id="username">
+      <input type="text" placeholder="Password" id="password">
+      <button @click="login()">Login</button>
+
+      <label>Add Item</label>
+      <input type="text" placeholder="ItemName" id="itemName">
+      <input type="text" placeholder="ItemPrice" id="itemPrice">
+      <input type="text" placeholder="ItemQuantity" id="itemQuantity">
+      <button @click="addItem()">Add</button>
+
+      <label>Add to cart</label>
+      <input type="text" placeholder="TokenCart" id="cartToken">
+      <input type="text" placeholder="ItemCart" id="cartItem">
+      <button @click="addToCart()">Cart</button>
+
+      <label>Purchase</label>
+      <input type="text" placeholder="PurchaseToken" id="purchaseToken">
+      <button @click="purchase()">Purchase</button>
+
+      <div id="usersBox">
+        <ul>
+          <li v-for="user in users"> <br>
+            Username = {{ user.username }} <br>
+            Password = {{ user.password }} <br>
+          </li>
+        </ul>
+      </div>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="./app.js" charset="utf-8"></script>
+  </body>
+</html>
