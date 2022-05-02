@@ -6,6 +6,8 @@ const loginSchema = new mongoose.Schema({
   email: String,
   ballance: Number,
   dateCreated: Date,
+  telnumber: String,
+  state: String,
   token: String,
   cart: [],
   ownedItems: [],

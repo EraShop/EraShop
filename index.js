@@ -26,16 +26,15 @@ db.once("open", function () {
 
 api.use(cors());
 
-api.post("/newUser", urlencodedParser, async (req, res) => {
-  const { newUser, newPass, email } = req.body;
+api.post("/user/new", urlencodedParser, async (req, res) => {
+  const { newUser, newPass, newEmail, newTelNumber, newState } = req.body;
 
   const salt = await bcrypt.genSalt(12);
   const hashed = await bcrypt.hash(newPass, salt);
 
   const newDate = new Date();
 
-  if (newUser === "" || newPass === "") {
-    res.status(400).send("Error: newUser and newPass are empty");
+  if (newUser === "" || newPass === "" || newEmail === "" || newTelNumber === "" || newState === "") {
   } else {
     loginSchema.findOne({ username: newUser }, (err, user) => {
       if (user) {
@@ -48,9 +47,11 @@ api.post("/newUser", urlencodedParser, async (req, res) => {
         const schema = new loginSchema({
           username: newUser,
           password: hashed,
-          email: email,
+          email: newEmail,
           ballance: 100,
           dateCreated: newDate.setHours(newDate.getHours() + 2),
+          telnumber: newTelNumber,
+          state: newState,
           token: token,
         })
 
@@ -74,7 +75,7 @@ api.post("/newUser", urlencodedParser, async (req, res) => {
   }
 });
 
-api.post("/changePass", urlencodedParser, (req, res) => {
+api.post("/user/changePass", urlencodedParser, (req, res) => {
   const { username, newPass } = req.body;
 
   if (username === "" || newPass === "") {
@@ -98,7 +99,7 @@ api.post("/changePass", urlencodedParser, (req, res) => {
   }
 });
 
-api.post("/removeBallance", urlencodedParser, (req, res) => {
+api.post("/user/ballance/down", urlencodedParser, (req, res) => {
   const { username, ballance } = req.body;
 
   loginSchema.findOne({ username: username }, (err, user) => {
@@ -137,7 +138,7 @@ api.post("/removeBallance", urlencodedParser, (req, res) => {
   });
 });
 
-api.post("/addBallance", urlencodedParser, (req, res) => {
+api.post("/user/ballance/up", urlencodedParser, (req, res) => {
   const { token, ballance } = req.body;
 
   const ballanceNumber = Number(ballance);
@@ -179,7 +180,7 @@ api.post("/addBallance", urlencodedParser, (req, res) => {
   });
 });
 
-api.post("/removeUser", urlencodedParser, (req, res) => {
+api.post("/user/remove", urlencodedParser, (req, res) => {
   const { token } = req.body;
 
   jwt.verify(token, "supersecret", (err, decoded) => {
@@ -233,7 +234,7 @@ api.post("/login", urlencodedParser, async (req, res) => {
   });
 });
 
-api.post("/addItem", urlencodedParser, (req, res) => {
+api.post("/stock/add", urlencodedParser, (req, res) => {
   const { itemName, itemPrice, itemQuantity } = req.body;
 
   if (itemName === "" || itemPrice === "" || itemQuantity === "") {
@@ -265,7 +266,7 @@ api.post("/addItem", urlencodedParser, (req, res) => {
   }
 });
 
-api.post("/removeItem", urlencodedParser, (req, res) => {
+api.post("/stock/remove", urlencodedParser, (req, res) => {
   const { itemName } = req.body;
 
   if (itemName === "") {
@@ -287,7 +288,7 @@ api.post("/removeItem", urlencodedParser, (req, res) => {
   }
 });
 
-api.post("/changeItemPrice", urlencodedParser, (req, res) => {
+api.post("/stock/price", urlencodedParser, (req, res) => {
   const { itemName, itemPrice } = req.body;
 
   if (itemName === "" || itemPrice === "") {
@@ -313,7 +314,24 @@ api.post("/changeItemPrice", urlencodedParser, (req, res) => {
   }
 });
 
-api.post("/addToCart", urlencodedParser, (req, res) => {
+api.get("/stock/data", (req, res) => {
+  stockSchema.find({}, (err, items) => {
+    if (err) {
+      res.json({
+        status: 500,
+        message: "Internal Server Error",
+      });
+    } else {
+      res.json({
+        status: 200,
+        message: "Success",
+        data: items,
+      });
+    }
+  });
+});
+
+api.post("/user/cart/add", urlencodedParser, (req, res) => {
   const { token, itemName } = req.body;
 
   if (token === "" || itemName === "") {
@@ -381,7 +399,7 @@ api.post("/addToCart", urlencodedParser, (req, res) => {
   }
 });
 
-api.post("/changeCartItemQuantity", urlencodedParser, (req, res) => {
+api.post("/user/cart/quantity", urlencodedParser, (req, res) => {
   const { token, itemName, quantity } = req.body;
 
   const newQuantity = Number(quantity);
@@ -445,7 +463,7 @@ api.post("/changeCartItemQuantity", urlencodedParser, (req, res) => {
   }
 });
 
-api.post("/removeFromCart", urlencodedParser, (req, res) => {
+api.post("/user/cart/remove", urlencodedParser, (req, res) => {
   const { token, itemName } = req.body;
 
   if (token === "" || itemName === "") {
@@ -495,7 +513,7 @@ api.post("/removeFromCart", urlencodedParser, (req, res) => {
   }
 });
 
-api.post("/removeAllFromCart", urlencodedParser, (req, res) => {
+api.post("/user/cart/removeall", urlencodedParser, (req, res) => {
   const { token } = req.body;
 
   if (token === "") {
@@ -543,7 +561,7 @@ api.post("/removeAllFromCart", urlencodedParser, (req, res) => {
   }
 });
 
-api.post("/purchase", urlencodedParser, (req, res) => {
+api.post("/user/purchase", urlencodedParser, (req, res) => {
   const { token } = req.body;
 
   if (token === "") {
@@ -634,7 +652,7 @@ api.post("/purchase", urlencodedParser, (req, res) => {
   }
 });
 
-api.get("/users", urlencodedParser, async (req, res) => {
+api.get("/user/users", urlencodedParser, async (req, res) => {
   const result = await loginSchema.find();
   res.json({
     data: result,
