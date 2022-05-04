@@ -1,3 +1,4 @@
+/*
 const app = new Vue({
   el: "#app",
   data: {
@@ -35,7 +36,7 @@ const app = new Vue({
       const newFetch = fetch(postRequest);
     },
     getFetch() {
-      const getRequest = new Request("http://localhost:3000/users", {
+      const getRequest = new Request("http://localhost:3000/user/users", {
         method: "GET",
         headers: {
           Accept: "application/x-www-form-urlencoded",
@@ -143,3 +144,4 @@ const app = new Vue({
     }
   },
 });
+*/

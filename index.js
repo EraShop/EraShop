@@ -5,6 +5,7 @@ const port = 3000;
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 const loginSchema = require("./Schema/loginSchema");
 const stockSchema = require("./Schema/stockSchema");
 
@@ -12,6 +13,15 @@ const stockSchema = require("./Schema/stockSchema");
 const bodyParser = require("body-parser");
 var jsonParser = bodyParser.json();
 var urlencodedParser = bodyParser.urlencoded({ extended: false });
+
+//Send Email
+const transporter = nodemailer.createTransport({
+  service: "hotmail",
+  auth: {
+    user: ourMail,
+    pass: ourPass,
+  },
+});
 
 //MongoDB
 const mongoose = require("mongoose");
@@ -32,9 +42,17 @@ api.post("/user/new", urlencodedParser, async (req, res) => {
   const salt = await bcrypt.genSalt(12);
   const hashed = await bcrypt.hash(newPass, salt);
 
+  const newTelNumberNumber = Number(newTelNumber);
+
   const newDate = new Date();
 
-  if (newUser === "" || newPass === "" || newEmail === "" || newTelNumber === "" || newState === "") {
+  if (
+    newUser === "" ||
+    newPass === "" ||
+    newEmail === "" ||
+    newTelNumber === "" ||
+    newState === ""
+  ) {
   } else {
     loginSchema.findOne({ username: newUser }, (err, user) => {
       if (user) {
@@ -50,7 +68,7 @@ api.post("/user/new", urlencodedParser, async (req, res) => {
           email: newEmail,
           ballance: 100,
           dateCreated: newDate.setHours(newDate.getHours() + 2),
-          telnumber: newTelNumber,
+          telnumber: newTelNumberNumber,
           state: newState,
           token: token,
         })
@@ -190,20 +208,23 @@ api.post("/user/remove", urlencodedParser, (req, res) => {
         message: "Unauthorized",
       });
     } else {
-      loginSchema.findOneAndDelete({ username: decoded.username }, (err, user) => {
-        if (err) {
-          res.json({
-            status: 500,
-            message: "Internal Server Error",
-          });
-          console.log(err);
-        } else {
-          res.json({
-            status: 200,
-            message: "Success",
-          });
+      loginSchema.findOneAndDelete(
+        { username: decoded.username },
+        (err, user) => {
+          if (err) {
+            res.json({
+              status: 500,
+              message: "Internal Server Error",
+            });
+            console.log(err);
+          } else {
+            res.json({
+              status: 200,
+              message: "Success",
+            });
+          }
         }
-      });
+      );
     }
   });
 });
@@ -627,6 +648,36 @@ api.post("/user/purchase", urlencodedParser, (req, res) => {
                       }
                     }
                   );
+                  const options = {
+                    from: ourMail,
+                    to: user.email,
+                    subject: "EraShop Purchase",
+                    text:
+                      "Thank you for your purchase, we hope you enjoy your purchase. Your purchase details are below: \n" +
+                      user.cart
+                        .map(
+                          (item) =>
+                            item.item +
+                            " " +
+                            item.quantity +
+                            " " +
+                            item.price +
+                            " "
+                        )
+                        .join("\n") +
+                      "\nTotal Price: " +
+                      totalPrice +
+                      "\nYour ballance is now: " +
+                      user.ballance +
+                      "\n\nThank you for shopping with EraShop",
+                  };
+                  setTimeout(() => {
+                    transporter.sendMail(options, (err, info) => {
+                      if (err) {
+                        console.log(err);
+                      }
+                    });
+                  }, 10000);
                 } else {
                   res.json({
                     status: 404,
@@ -646,6 +697,29 @@ api.post("/user/purchase", urlencodedParser, (req, res) => {
         res.json({
           status: 401,
           message: "Wrong token",
+        });
+      }
+    });
+  }
+});
+
+api.get("/stock/:item", (req, res) => {
+  const { item } = req.params;
+
+  if (item === "") {
+    res.status(400).send("Error: item is empty");
+  } else {
+    stockSchema.findOne({ name: item }, (err, item) => {
+      if (item) {
+        res.json({
+          status: 200,
+          message: "Success",
+          item,
+        });
+      } else {
+        res.json({
+          status: 404,
+          message: "Item not found",
         });
       }
     });
