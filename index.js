@@ -43,8 +43,8 @@ api.post("/user/new", urlencodedParser, async (req, res) => {
   const hashed = await bcrypt.hash(newPass, salt);
 
   const newTelNumberNumber = Number(newTelNumber);
-
-  const newDate = new Date();
+  const date = new Date();
+  date.setHours(date.getHours() + 2);
 
   if (
     newUser === "" ||
@@ -67,7 +67,7 @@ api.post("/user/new", urlencodedParser, async (req, res) => {
           password: hashed,
           email: newEmail,
           ballance: 100,
-          dateCreated: newDate.setHours(newDate.getHours() + 2),
+          dateCreated: date,
           telnumber: newTelNumberNumber,
           state: newState,
           token: token,
@@ -657,15 +657,20 @@ api.post("/user/purchase", urlencodedParser, (req, res) => {
                       user.cart
                         .map(
                           (item) =>
-                            "Product name: " + item.item + "\n" +
-                            "Prodcut price: "+ item.price + "\n" +
+                            "Product name: " +
+                            item.item +
+                            "\n" +
+                            "Prodcut price: " +
+                            item.price +
+                            "\n" +
                             " "
                         )
                         .join("\n") +
                       "\nTotal Price: " +
                       totalPrice +
                       "\nYour ballance is now: " +
-                      user.ballance-totalPrice +
+                      user.ballance -
+                      totalPrice +
                       "\n\nThank you for shopping with EraShop",
                   };
                   setTimeout(() => {
@@ -702,7 +707,9 @@ api.post("/user/purchase", urlencodedParser, (req, res) => {
 
 api.get("/stock/:item", (req, res) => {
   const { item } = req.params;
-
+  if (item.includes("-")) {
+    item = item.replace(/-/g, " ");
+  }
   if (item === "") {
     res.status(400).send("Error: item is empty");
   } else {
@@ -723,7 +730,7 @@ api.get("/stock/:item", (req, res) => {
   }
 });
 
-api.get("/user/users", urlencodedParser, async (req, res) => {
+api.get("/user/data", urlencodedParser, async (req, res) => {
   const result = await loginSchema.find();
   res.json({
     data: result,
