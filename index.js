@@ -18,8 +18,8 @@ var urlencodedParser = bodyParser.urlencoded({ extended: false });
 const transporter = nodemailer.createTransport({
   service: "hotmail",
   auth: {
-    user: ourMail,
-    pass: ourPass,
+    user: "",
+    pass: "",
   },
 });
 
@@ -649,7 +649,7 @@ api.post("/user/purchase", urlencodedParser, (req, res) => {
                     }
                   );
                   const options = {
-                    from: ourMail,
+                    from: "",
                     to: user.email,
                     subject: "EraShop Purchase",
                     text:
@@ -657,18 +657,15 @@ api.post("/user/purchase", urlencodedParser, (req, res) => {
                       user.cart
                         .map(
                           (item) =>
-                            item.item +
-                            " " +
-                            item.quantity +
-                            " " +
-                            item.price +
+                            "Product name: " + item.item + "\n" +
+                            "Prodcut price: "+ item.price + "\n" +
                             " "
                         )
                         .join("\n") +
                       "\nTotal Price: " +
                       totalPrice +
                       "\nYour ballance is now: " +
-                      user.ballance +
+                      user.ballance-totalPrice +
                       "\n\nThank you for shopping with EraShop",
                   };
                   setTimeout(() => {
