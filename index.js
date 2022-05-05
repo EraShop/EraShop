@@ -89,7 +89,7 @@ api.post("/user/new", async (req, res) => {
   }
 });
 
-api.post("/user/changePass", (req, res) => {
+api.post("/user/changePass", verifyToken, (req, res) => {
   const { username, newPass } = req.body;
 
   if (username === "" || newPass === "") {
@@ -113,7 +113,7 @@ api.post("/user/changePass", (req, res) => {
   }
 });
 
-api.post("/user/ballance/down", (req, res) => {
+api.post("/user/ballance/down", verifyToken, (req, res) => {
   const { username, ballance } = req.body;
 
   loginSchema.findOne({ username: username }, (err, user) => {
@@ -152,7 +152,7 @@ api.post("/user/ballance/down", (req, res) => {
   });
 });
 
-api.post("/user/ballance/up", (req, res) => {
+api.post("/user/ballance/up", verifyToken, (req, res) => {
   const { token, ballance } = req.body;
 
   const ballanceNumber = Number(ballance);
@@ -194,7 +194,7 @@ api.post("/user/ballance/up", (req, res) => {
   });
 });
 
-api.post("/user/remove", (req, res) => {
+api.post("/user/remove", verifyToken, (req, res) => {
   const { token } = req.body;
 
   jwt.verify(token, "supersecret", (err, decoded) => {
@@ -251,7 +251,7 @@ api.post("/login", async (req, res) => {
   });
 });
 
-api.post("/stock/add", (req, res) => {
+api.post("/stock/add", verifyToken, (req, res) => {
   const { itemName, itemPrice, itemQuantity } = req.body;
 
   if (itemName === "" || itemPrice === "" || itemQuantity === "") {
@@ -283,7 +283,7 @@ api.post("/stock/add", (req, res) => {
   }
 });
 
-api.post("/stock/remove", (req, res) => {
+api.post("/stock/remove", verifyToken, (req, res) => {
   const { itemName } = req.body;
 
   if (itemName === "") {
@@ -348,7 +348,7 @@ api.get("/stock/data", (req, res) => {
   });
 });
 
-api.post("/user/cart/add", (req, res) => {
+api.post("/user/cart/add", verifyToken, (req, res) => {
   const { token, itemName } = req.body;
 
   if (token === "" || itemName === "") {
@@ -416,7 +416,7 @@ api.post("/user/cart/add", (req, res) => {
   }
 });
 
-api.post("/user/cart/quantity", (req, res) => {
+api.post("/user/cart/quantity", verifyToken, (req, res) => {
   const { token, itemName, quantity } = req.body;
 
   const newQuantity = Number(quantity);
@@ -480,7 +480,7 @@ api.post("/user/cart/quantity", (req, res) => {
   }
 });
 
-api.post("/user/cart/remove", (req, res) => {
+api.post("/user/cart/remove", verifyToken, (req, res) => {
   const { token, itemName } = req.body;
 
   if (token === "" || itemName === "") {
@@ -530,7 +530,7 @@ api.post("/user/cart/remove", (req, res) => {
   }
 });
 
-api.post("/user/cart/removeall", (req, res) => {
+api.post("/user/cart/removeall", verifyToken, (req, res) => {
   const { token } = req.body;
 
   if (token === "") {
@@ -578,7 +578,7 @@ api.post("/user/cart/removeall", (req, res) => {
   }
 });
 
-api.post("/user/purchase", (req, res) => {
+api.post("/user/purchase", verifyToken, (req, res) => {
   const { token } = req.body;
 
   if (token === "") {
@@ -726,7 +726,7 @@ api.get("/stock/:item", (req, res) => {
   }
 });
 
-api.get("/user/data", async (req, res) => {
+api.get("/user/data", verifyToken, async (req, res) => {
   const result = await loginSchema.find();
   res.json({
     data: result,
