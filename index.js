@@ -171,7 +171,7 @@ api.post("/login", async (req, res) => {
     if (user) {
       if (bcrypt.compare(password, user.password)) {
         let token = jwt.sign({ username: username }, "supersecret", {
-          expiresIn: "3d",
+          expiresIn: "10s",
         });
         res.status(200).json(token);
       } else {
@@ -536,10 +536,25 @@ api.get("/stock/:item", (req, res) => {
   }
 });
 
-api.get("/user/data", verifyToken, async (req, res) => {
-  const result = await loginSchema.find();
-  res.status(200).json(result);
-});
+
+
+api.get('/kafka', verifyToken, async (req, res) => {
+  jwt.verify(req.token, 'supersecret', function (err, decoded) {
+    if (!err) {
+      loginSchema.findOne({ username: decoded.username }, (err, user) => {
+        if (user) {
+          res.status(200)
+        }
+        else {
+          res.status(404).send("User not found");
+        }
+      })
+    } else {
+      res.status(401).send("Forbidden");
+    }
+  })
+})
+
 
 function verifyToken(req, res, next) {
   const bearerHeader = req.headers["authorization"];
