@@ -12,8 +12,8 @@ const stockSchema = require("./Schema/stockSchema");
 const transporter = nodemailer.createTransport({
   service: "hotmail",
   auth: {
-    user: "dome.vo.2020@skola.ssps.cz",
-    pass: "Ketynka2315",
+    user: process.env.MAIL,
+    pass: process.env.MAILPASS
   },
 });
 
