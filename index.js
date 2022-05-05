@@ -9,12 +9,11 @@ const nodemailer = require("nodemailer");
 const loginSchema = require("./Schema/loginSchema");
 const stockSchema = require("./Schema/stockSchema");
 
-//Send Email
 const transporter = nodemailer.createTransport({
   service: "hotmail",
   auth: {
-    user: "",
-    pass: "",
+    user: "dome.vo.2020@skola.ssps.cz",
+    pass: "Ketynka2315",
   },
 });
 
@@ -29,7 +28,7 @@ db.on("error", console.error.bind(console, "Connection error:"));
 db.once("open", function () {
   console.log("Connected");
 });
-api.use(express.json())
+api.use(express.json());
 api.use(cors());
 
 api.post("/user/new", async (req, res) => {
@@ -41,18 +40,12 @@ api.post("/user/new", async (req, res) => {
   const date = new Date();
   date.setHours(date.getHours() + 2);
 
-  if (
-    newUser === "" ||
-    newPass === "" ||
-    newEmail === "" ||
-    newState === ""
-  ) {
+  if (newUser === "" || newPass === "" || newEmail === "" || newState === "") {
   } else {
     loginSchema.findOne({ username: newUser }, (err, user) => {
       if (user) {
         res.send("User already exists");
       } else {
-
         const schema = new loginSchema({
           username: newUser,
           password: hashed,
@@ -85,15 +78,9 @@ api.post("/user/changePass", verifyToken, (req, res) => {
       if (user) {
         user.password = newPass;
         user.save();
-        res.json({
-          status: 200,
-          message: "Success",
-        });
+        res.status(200).send("Password changed");
       } else {
-        res.json({
-          status: 404,
-          message: "User not found",
-        });
+        res.status(400).send("Error: user not found");
       }
     });
   }
@@ -111,44 +98,29 @@ api.post("/user/ballance/down", verifyToken, (req, res) => {
           { $set: { ballance: user.ballance - ballance } },
           (err, user) => {
             if (err) {
-              res.json({
-                status: 500,
-                message: "Internal Server Error",
-              });
+              res.status(500).send(err);
             } else {
-              res.json({
-                status: 200,
-                message: "Success",
-              });
+              res.status(200).send("Ballance updated");
             }
           }
         );
       } else {
-        res.json({
-          status: 400,
-          message: "Not enough ballance",
-        });
+        res.status(400).send("Error: not enough ballance");
       }
     } else {
-      res.json({
-        status: 404,
-        message: "User not found",
-      });
+      res.status(400).send("Error: user not found");
     }
   });
 });
 
 api.post("/user/ballance/up", verifyToken, (req, res) => {
-  const { token, ballance } = req.body;
+  const { ballance } = req.body;
 
   const ballanceNumber = Number(ballance);
 
-  jwt.verify(token, "supersecret", (err, decoded) => {
+  jwt.verify(req.token, "supersecret", (err, decoded) => {
     if (err) {
-      res.json({
-        status: 401,
-        message: "Unauthorized",
-      });
+      res.status(401).send("Not logged in");
     } else {
       loginSchema.findOne({ username: decoded.username }, (err, user) => {
         if (user) {
@@ -157,23 +129,14 @@ api.post("/user/ballance/up", verifyToken, (req, res) => {
             { $set: { ballance: user.ballance + ballanceNumber } },
             (err, user) => {
               if (err) {
-                res.json({
-                  status: 500,
-                  message: "Internal Server Error",
-                });
+                res.status(500).send(err);
               } else {
-                res.json({
-                  status: 200,
-                  message: "Success",
-                });
+                res.status(200).send("Ballance updated");
               }
             }
           );
         } else {
-          res.json({
-            status: 404,
-            message: "User not found",
-          });
+          res.status(400).send("Error: user not found");
         }
       });
     }
@@ -181,29 +144,18 @@ api.post("/user/ballance/up", verifyToken, (req, res) => {
 });
 
 api.post("/user/remove", verifyToken, (req, res) => {
-  const { token } = req.body;
-
-  jwt.verify(token, "supersecret", (err, decoded) => {
+  jwt.verify(req.token, "supersecret", (err, decoded) => {
     if (err) {
-      res.json({
-        status: 401,
-        message: "Unauthorized",
-      });
+      res.status(401).send("Not logged in");
     } else {
       loginSchema.findOneAndDelete(
         { username: decoded.username },
         (err, user) => {
           if (err) {
-            res.json({
-              status: 500,
-              message: "Internal Server Error",
-            });
+            res.status(500).send(err);
             console.log(err);
           } else {
-            res.json({
-              status: 200,
-              message: "Success",
-            });
+            res.status(200).send("User deleted");
           }
         }
       );
@@ -217,22 +169,16 @@ api.post("/login", async (req, res) => {
   loginSchema.findOne({ username: username }, (err, user) => {
     console.log(user);
     if (user) {
-      if (bcrypt.compare(user.password) === password) {
+      if (bcrypt.compare(password, user.password)) {
         let token = jwt.sign({ username: username }, "supersecret", {
           expiresIn: "3d",
         });
         res.status(200).json(token);
       } else {
-        res.json({
-          status: 401,
-          message: "Wrong password",
-        });
+        res.status(400).send("Error: wrong password");
       }
     } else {
-      res.json({
-        status: 404,
-        message: "User not found",
-      });
+      res.status(400).send("Error: user not found");
     }
   });
 });
@@ -241,9 +187,7 @@ api.post("/stock/add", verifyToken, (req, res) => {
   const { itemName, itemPrice, itemQuantity } = req.body;
 
   if (itemName === "" || itemPrice === "" || itemQuantity === "") {
-    res
-      .status(400)
-      .send("Error: itemName, itemPrice and itemQuantity are empty");
+    res.status(400).send("Error: requests are empty");
   } else {
     const schema = new stockSchema({
       name: itemName,
@@ -253,17 +197,10 @@ api.post("/stock/add", verifyToken, (req, res) => {
 
       .save()
       .then(() => {
-        res.json({
-          status: 200,
-          message: "Success",
-          data: schema,
-        });
+        res.status(200).send("Stock added");
       })
       .catch((err) => {
-        res.json({
-          status: 500,
-          message: "Internal Server Error",
-        });
+        res.status(500).send(err);
         console.log(err);
       });
   }
@@ -277,15 +214,9 @@ api.post("/stock/remove", verifyToken, (req, res) => {
   } else {
     stockSchema.findOneAndDelete({ name: itemName }, (err, user) => {
       if (user) {
-        res.json({
-          status: 200,
-          message: "Success",
-        });
+        res.status(200).send("Stock removed");
       } else {
-        res.json({
-          status: 404,
-          message: "Item not found",
-        });
+        res.status(400).send("Error: item not found");
       }
     });
   }
@@ -302,15 +233,9 @@ api.post("/stock/price", (req, res) => {
       { $set: { price: itemPrice } },
       (err, user) => {
         if (err) {
-          res.json({
-            status: 500,
-            message: "Internal Server Error",
-          });
+          res.status(500).send(err);
         } else {
-          res.json({
-            status: 200,
-            message: "Success",
-          });
+          res.status(200).send("Price updated");
         }
       }
     );
@@ -320,27 +245,20 @@ api.post("/stock/price", (req, res) => {
 api.get("/stock/data", (req, res) => {
   stockSchema.find({}, (err, items) => {
     if (err) {
-      res.json({
-        status: 500,
-        message: "Internal Server Error",
-      });
+      req.status(500).send(err);
     } else {
-      res.json({
-        status: 200,
-        message: "Success",
-        data: items,
-      });
+      res.status(200).json(items);
     }
   });
 });
 
 api.post("/user/cart/add", verifyToken, (req, res) => {
-  const { token, itemName } = req.body;
+  const { itemName } = req.body;
 
-  if (token === "" || itemName === "") {
+  if (itemName === "") {
     res.status(400).send("Error: token, itemName are empty");
   } else {
-    jwt.verify(token, "supersecret", function (err, decoded) {
+    jwt.verify(req.token, "supersecret", function (err, decoded) {
       if (!err) {
         loginSchema.findOne({ username: decoded.username }, (err, user) => {
           if (user) {
@@ -360,57 +278,39 @@ api.post("/user/cart/add", verifyToken, (req, res) => {
                     },
                     (err, user) => {
                       if (err) {
-                        res.json({
-                          status: 500,
-                          message: "Internal Server Error",
-                        });
+                        res.status(500).send(err);
                       } else {
-                        res.json({
-                          status: 200,
-                          message: "Success",
-                        });
+                        res.status(200).send("Item added to cart");
                       }
                     }
                   );
                 } else {
-                  res.json({
-                    status: 404,
-                    message: "Item not available",
-                  });
+                  res.status(400).send("Error: item out of stock");
                 }
               } else {
-                res.json({
-                  status: 404,
-                  message: "Item not found",
-                });
+                res.status(400).send("Error: item not found");
               }
             });
           } else {
-            res.json({
-              status: 404,
-              message: "User not found",
-            });
+            res.status(400).send("Error: user not found");
           }
         });
       } else {
-        res.json({
-          status: 401,
-          message: "Wrong token",
-        });
+        res.status(401).send("Not logged in");
       }
     });
   }
 });
 
 api.post("/user/cart/quantity", verifyToken, (req, res) => {
-  const { token, itemName, quantity } = req.body;
+  const { itemName, quantity } = req.body;
 
   const newQuantity = Number(quantity);
 
-  if (token === "" || itemName === "" || quantity === "") {
+  if (itemName === "" || quantity === "") {
     res.status(400).send("Error: token, itemName and quantity are empty");
   } else {
-    jwt.verify(token, "supersecret", function (err, decoded) {
+    jwt.verify(req.token, "supersecret", function (err, decoded) {
       if (!err) {
         loginSchema.findOne({ username: decoded.username }, (err, user) => {
           if (user) {
@@ -430,49 +330,34 @@ api.post("/user/cart/quantity", verifyToken, (req, res) => {
                     }
                   )
                   .then(() => {
-                    res.json({
-                      status: 200,
-                      message: "Success",
-                    });
+                    res.status(200).send("Quantity updated");
                   })
                   .catch((err) => {
-                    res.json({
-                      status: 500,
-                      message: "Internal Server Error",
-                    });
+                    res.status(500).send(err);
                     console.log(err);
                   });
               } else {
-                res.json({
-                  status: 404,
-                  message: "Item not found",
-                });
+                res.status(404).send("Item not found");
               }
             });
           } else {
-            res.json({
-              status: 404,
-              message: "User not found",
-            });
+            res.status(404).send("User not found");
           }
         });
       } else {
-        res.json({
-          status: 401,
-          message: "Wrong token",
-        });
+        res.status(401).send("Wrong token");
       }
     });
   }
 });
 
 api.post("/user/cart/remove", verifyToken, (req, res) => {
-  const { token, itemName } = req.body;
+  const { itemName } = req.body;
 
-  if (token === "" || itemName === "") {
+  if (itemName === "") {
     res.status(400).send("Error: token and itemName are empty");
   } else {
-    jwt.verify(token, "supersecret", function (err, decoded) {
+    jwt.verify(req.token, "supersecret", function (err, decoded) {
       if (!err) {
         loginSchema.findOne({ username: decoded.username }, (err, user) => {
           if (user) {
@@ -487,204 +372,150 @@ api.post("/user/cart/remove", verifyToken, (req, res) => {
               },
               (err, user) => {
                 if (err) {
-                  res.json({
-                    status: 500,
-                    message: "Internal Server Error",
-                  });
+                  res.status(500).send(err);
                 } else {
-                  res.json({
-                    status: 200,
-                    message: "Success",
-                  });
+                  res.status(200).send("Item removed");
                 }
               }
             );
           } else {
-            res.json({
-              status: 404,
-              message: "User not found",
-            });
+            res.status(404).send("User not found");
           }
         });
       } else {
-        res.json({
-          status: 401,
-          message: "Wrong token",
-        });
+        res.status(401).send("Wrong token");
       }
     });
   }
 });
 
 api.post("/user/cart/removeall", verifyToken, (req, res) => {
-  const { token } = req.body;
-
-  if (token === "") {
-    res.status(400).send("Error: token is empty");
-  } else {
-    jwt.verify(token, "supersecret", function (err, decoded) {
-      if (!err) {
-        loginSchema.findOne({ username: decoded.username }, (err, user) => {
-          if (user) {
-            loginSchema.findOneAndUpdate(
-              { username: decoded.username },
-              {
-                $set: {
-                  cart: [],
-                },
+  jwt.verify(req.token, "supersecret", function (err, decoded) {
+    if (!err) {
+      loginSchema.findOne({ username: decoded.username }, (err, user) => {
+        if (user) {
+          loginSchema.findOneAndUpdate(
+            { username: decoded.username },
+            {
+              $set: {
+                cart: [],
               },
-              (err, user) => {
-                if (err) {
-                  res.json({
-                    status: 500,
-                    message: "Internal Server Error",
-                  });
-                } else {
-                  res.json({
-                    status: 200,
-                    message: "Success",
-                  });
-                }
+            },
+            (err, user) => {
+              if (err) {
+                res.status(500).send(err);
+              } else {
+                res.status(200).send("Success");
               }
-            );
-          } else {
-            res.json({
-              status: 404,
-              message: "User not found",
-            });
-          }
-        });
-      } else {
-        res.json({
-          status: 401,
-          message: "Wrong token",
-        });
-      }
-    });
-  }
+            }
+          );
+        } else {
+          res.status(404).send("User not found");
+        }
+      });
+    } else {
+      res.status(401).send("Wrong token");
+    }
+  });
 });
 
 api.post("/user/purchase", verifyToken, (req, res) => {
-  const { token } = req.body;
-
-  if (token === "") {
-    res.status(400).send("Error: token is empty");
-  } else {
-    jwt.verify(token, "supersecret", function (err, decoded) {
-      if (!err) {
-        loginSchema.findOne({ username: decoded.username }, (err, user) => {
-          if (user) {
-            let totalPrice = 0;
-            user.cart.forEach((allItem) => {
-              totalPrice += allItem.price * allItem.quantity;
-            });
-            user.cart.forEach((item) => {
-              stockSchema.findOne({ name: item.item }, (err, stockItem) => {
-                if (
-                  stockItem &&
-                  stockItem.quantity >= item.quantity &&
-                  user.ballance >= totalPrice
-                ) {
-                  stockSchema.findOneAndUpdate(
-                    { name: item.item },
-                    {
-                      $inc: {
-                        quantity: -item.quantity,
-                      },
+  jwt.verify(req.token, "supersecret", function (err, decoded) {
+    if (!err) {
+      loginSchema.findOne({ username: decoded.username }, (err, user) => {
+        if (user) {
+          let totalPrice = 0;
+          user.cart.forEach((allItem) => {
+            totalPrice += allItem.price * allItem.quantity;
+          });
+          user.cart.forEach((item) => {
+            stockSchema.findOne({ name: item.item }, (err, stockItem) => {
+              if (
+                stockItem &&
+                stockItem.quantity >= item.quantity &&
+                user.ballance >= totalPrice
+              ) {
+                stockSchema.findOneAndUpdate(
+                  { name: item.item },
+                  {
+                    $inc: {
+                      quantity: -item.quantity,
                     },
-                    (err, stockItem) => {
-                      if (err) {
-                        res.json({
-                          status: 500,
-                          message: "Internal Server Error",
-                        });
-                      } else {
-                        loginSchema.findOneAndUpdate(
-                          { username: decoded.username },
-                          {
-                            $inc: {
-                              ballance: -totalPrice,
-                            },
-                            $set: {
-                              cart: [],
-                              ownedItems: [
-                                ...user.ownedItems,
-                                ...user.cart.map((item) => item),
-                              ],
-                            },
+                  },
+                  (err, stockItem) => {
+                    if (err) {
+                      res.status(500).send("Internal Server Error");
+                    } else {
+                      loginSchema.findOneAndUpdate(
+                        { username: decoded.username },
+                        {
+                          $inc: {
+                            ballance: -totalPrice,
                           },
-                          (err, user) => {
-                            if (err) {
-                              res.json({
-                                status: 500,
-                                message: "Internal Server Error",
-                              });
-                            } else {
-                              res.json({
-                                status: 200,
-                                message: "Success",
-                              });
-                            }
+                          $set: {
+                            cart: [],
+                            ownedItems: [
+                              ...user.ownedItems,
+                              ...user.cart.map((item) => item),
+                            ],
+                          },
+                        },
+                        (err, user) => {
+                          if (err) {
+                            res.status(500).send("Internal Server Error");
+                          } else {
+                            res.status(200).send("Success");
                           }
-                        );
-                      }
+                        }
+                      );
                     }
-                  );
-                  const options = {
-                    from: "",
-                    to: user.email,
-                    subject: "EraShop Purchase",
-                    text:
-                      "Thank you for your purchase, we hope you enjoy your purchase. Your purchase details are below: \n" +
-                      user.cart
-                        .map(
-                          (item) =>
-                            "Product name: " +
-                            item.item +
-                            "\n" +
-                            "Prodcut price: " +
-                            item.price +
-                            "\n" +
-                            " "
-                        )
-                        .join("\n") +
-                      "\nTotal Price: " +
-                      totalPrice +
-                      "\nYour ballance is now: " +
-                      user.ballance -
-                      totalPrice +
-                      "\n\nThank you for shopping with EraShop",
-                  };
-                  setTimeout(() => {
-                    transporter.sendMail(options, (err, info) => {
-                      if (err) {
-                        console.log(err);
-                      }
-                    });
-                  }, 10000);
-                } else {
-                  res.json({
-                    status: 404,
-                    message: "Item not found",
+                  }
+                );
+                const options = {
+                  from: "dome.vo.2020@skola.ssps.cz",
+                  to: user.email,
+                  subject: "EraShop Purchase",
+                  text:
+                    "Thank you for your purchase, we hope you enjoy it. Your purchase details are below: \n" +
+                    user.cart
+                      .map(
+                        (item) =>
+                          "Product name: " +
+                          item.name +
+                          "\n" +
+                          "Prodcut price: " +
+                          item.price +
+                          "\n" +
+                          "\n"
+                      )
+                      .join("\n") +
+                    "\nTotal Price: " +
+                    totalPrice +
+                    "\nYour ballance is now: " +
+                    user.ballance -
+                    totalPrice +
+                    "\n\nThank you for shopping with EraShop",
+                };
+                setTimeout(() => {
+                  transporter.sendMail(options, (err, info) => {
+                    if (err) {
+                      console.log(err);
+                    }
                   });
-                }
-              });
+                }, 10000);
+              } else {
+                res.status(400).send("Error: Insufficient stock");
+              }
             });
-          } else {
-            res.json({
-              status: 404,
-              message: "User not found",
-            });
-          }
-        });
-      } else {
-        res.json({
-          status: 401,
-          message: "Wrong token",
-        });
-      }
-    });
-  }
+          });
+        } else {
+          res.status(404).send("User not found");
+        }
+      });
+    } else {
+      res.status(401).send("Wrong token");
+    }
+  });
 });
 
 api.get("/stock/:item", (req, res) => {
@@ -697,16 +528,9 @@ api.get("/stock/:item", (req, res) => {
   } else {
     stockSchema.findOne({ name: item }, (err, item) => {
       if (item) {
-        res.json({
-          status: 200,
-          message: "Success",
-          item,
-        });
+        res.status(200).json(item);
       } else {
-        res.json({
-          status: 404,
-          message: "Item not found",
-        });
+        res.status(404).send("Error: item not found");
       }
     });
   }
@@ -714,12 +538,10 @@ api.get("/stock/:item", (req, res) => {
 
 api.get("/user/data", verifyToken, async (req, res) => {
   const result = await loginSchema.find();
-  res.json({
-    data: result,
-  });
+  res.status(200).json(result);
 });
 
-function verifyToken(req, res, next){
+function verifyToken(req, res, next) {
   const bearerHeader = req.headers["authorization"];
   if (typeof bearerHeader !== "undefined") {
     const bearer = bearerHeader.split(" ");
