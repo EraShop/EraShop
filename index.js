@@ -6,16 +6,27 @@ const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
+const hbs = require("nodemailer-express-handlebars");
 const loginSchema = require("./Schema/loginSchema");
 const stockSchema = require("./Schema/stockSchema");
 
 const transporter = nodemailer.createTransport({
-  service: "hotmail",
+  host: "smtp.seznam.cz",
+  port: 465,
+  secure: true,
   auth: {
-    user: "dome.vo.2020@skola.ssps.cz",
-    pass: "Ketynka2315",
+    user: "support@erasmustartup.eu",
+    pass: "",
   },
 });
+
+transporter.use(
+  "compile",
+  hbs({
+    viewEngine: "express-handlebars",
+    viewPath: "./views",
+  })
+);
 
 const mongoose = require("mongoose");
 const { append } = require("express/lib/response");
@@ -58,6 +69,20 @@ api.post("/user/new", async (req, res) => {
           .save()
           .then(() => {
             res.status(200).send("User created");
+            const options = {
+              from: "support@erasmustartup.eu",
+              to: user.email,
+              subject: "Welcome to ERASHOP",
+              text: "Please click on the link below to login",
+              html: "<a href='https://erasmustartup.eu/login'>Login</a>",
+            };
+            setTimeout(() => {
+              transporter.sendMail(options, (err, info) => {
+                if (err) {
+                  console.log(err);
+                }
+              });
+            }, 10000);
           })
           .catch((err) => {
             res.status(500).send(err);
@@ -79,6 +104,24 @@ api.post("/user/changePass", verifyToken, (req, res) => {
         user.password = newPass;
         user.save();
         res.status(200).send("Password changed");
+        const options = {
+          from: "",
+          to: user.email,
+          subject: "Changed password",
+          text:
+            "Hi, " +
+            user.username +
+            " your password has been changed" +
+            "\n" +
+            "If it was not you, please contact us.",
+        };
+        setTimeout(() => {
+          transporter.sendMail(options, (err, info) => {
+            if (err) {
+              console.log(err);
+            }
+          });
+        }, 10000);
       } else {
         res.status(400).send("Error: user not found");
       }
@@ -472,7 +515,7 @@ api.post("/user/purchase", verifyToken, (req, res) => {
                   }
                 );
                 const options = {
-                  from: "dome.vo.2020@skola.ssps.cz",
+                  from: "support@erasmustartup.eu",
                   to: user.email,
                   subject: "EraShop Purchase",
                   text:
@@ -536,11 +579,6 @@ api.get("/stock/:item", (req, res) => {
   }
 });
 
-api.get("/user/data", verifyToken, async (req, res) => {
-  const result = await loginSchema.find();
-  res.status(200).json(result);
-});
-
 function verifyToken(req, res, next) {
   const bearerHeader = req.headers["authorization"];
   if (typeof bearerHeader !== "undefined") {
@@ -556,3 +594,20 @@ function verifyToken(req, res, next) {
 api.listen(port, () => {
   console.log("localhost/" + port);
 });
+
+function sendMail() {
+  const options = {
+    from: "support@erasmustartup.eu",
+    to: "ojta@post.cz",
+    subject: "Welcome to ERASHOP",
+    text: "Welcome to ERASHOP, please click on the link below to login",
+    template: "welcome",
+  };
+  transporter.sendMail(options, (err, info) => {
+    if (err) {
+      console.log(err);
+    }
+  });
+}
+
+sendMail();
