@@ -32,7 +32,7 @@ db.once("open", function () {
 api.use(express.json())
 api.use(cors());
 
-api.post("/user/new", async (req, res) => {
+api.post("/user/new", verifyToken, async (req, res) => {
   const { newUser, newPass, newEmail, newTelNumber, newState } = req.body;
 
   const salt = await bcrypt.genSalt(12);
