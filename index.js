@@ -33,12 +33,11 @@ api.use(express.json())
 api.use(cors());
 
 api.post("/user/new", async (req, res) => {
-  const { newUser, newPass, newEmail, newTelNumber, newState } = req.body;
+  const { newUser, newPass, newEmail, newState } = req.body;
 
   const salt = await bcrypt.genSalt(12);
   const hashed = await bcrypt.hash(newPass, salt);
 
-  const newTelNumberNumber = Number(newTelNumber);
   const date = new Date();
   date.setHours(date.getHours() + 2);
 
@@ -46,7 +45,6 @@ api.post("/user/new", async (req, res) => {
     newUser === "" ||
     newPass === "" ||
     newEmail === "" ||
-    newTelNumber === "" ||
     newState === ""
   ) {
   } else {
@@ -54,9 +52,6 @@ api.post("/user/new", async (req, res) => {
       if (user) {
         res.send("User already exists");
       } else {
-        var token = jwt.sign({ username: newUser }, "supersecret", {
-          expiresIn: "3d",
-        });
 
         const schema = new loginSchema({
           username: newUser,
@@ -64,24 +59,15 @@ api.post("/user/new", async (req, res) => {
           email: newEmail,
           ballance: 100,
           dateCreated: date,
-          telnumber: newTelNumberNumber,
           state: newState,
-          token: token,
         })
 
           .save()
           .then(() => {
-            res.json({
-              status: 200,
-              message: "Success",
-              data: schema,
-            });
+            res.status(200).send("User created");
           })
           .catch((err) => {
-            res.json({
-              status: 500,
-              message: "Internal Server Error",
-            });
+            res.status(500).send(err);
             console.log(err);
           });
       }
