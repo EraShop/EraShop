@@ -236,10 +236,10 @@ api.post("/login", urlencodedParser, async (req, res) => {
     console.log(user);
     if (user) {
       if (bcrypt.compare(user.password) === password) {
-        res.json({
-          status: 200,
-          message: "Success",
+        let token = jwt.sign({ username: username }, "supersecret", {
+          expiresIn: "3d",
         });
+        res.status(200).json(token);
       } else {
         res.json({
           status: 401,
@@ -729,6 +729,11 @@ api.get("/user/users", urlencodedParser, async (req, res) => {
     data: result,
   });
 });
+
+
+function verifyToken(){
+
+}
 
 api.listen(port, () => {
   console.log("localhost/" + port);
