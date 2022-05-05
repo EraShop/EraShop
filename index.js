@@ -9,11 +9,6 @@ const nodemailer = require("nodemailer");
 const loginSchema = require("./Schema/loginSchema");
 const stockSchema = require("./Schema/stockSchema");
 
-//BodyParser
-const bodyParser = require("body-parser");
-var jsonParser = bodyParser.json();
-var urlencodedParser = bodyParser.urlencoded({ extended: false });
-
 //Send Email
 const transporter = nodemailer.createTransport({
   service: "hotmail",
@@ -23,20 +18,21 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-//MongoDB
 const mongoose = require("mongoose");
+const { append } = require("express/lib/response");
 mongoose.connect(
   "mongodb+srv://Vojta:fQpGpaNnhOfyCZFy@erashop.iijwj.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
 );
+
 const db = mongoose.connection;
 db.on("error", console.error.bind(console, "Connection error:"));
 db.once("open", function () {
   console.log("Connected");
 });
-
+api.use(express.json())
 api.use(cors());
 
-api.post("/user/new", urlencodedParser, async (req, res) => {
+api.post("/user/new", async (req, res) => {
   const { newUser, newPass, newEmail, newTelNumber, newState } = req.body;
 
   const salt = await bcrypt.genSalt(12);
@@ -93,7 +89,7 @@ api.post("/user/new", urlencodedParser, async (req, res) => {
   }
 });
 
-api.post("/user/changePass", urlencodedParser, (req, res) => {
+api.post("/user/changePass", (req, res) => {
   const { username, newPass } = req.body;
 
   if (username === "" || newPass === "") {
@@ -117,7 +113,7 @@ api.post("/user/changePass", urlencodedParser, (req, res) => {
   }
 });
 
-api.post("/user/ballance/down", urlencodedParser, (req, res) => {
+api.post("/user/ballance/down", (req, res) => {
   const { username, ballance } = req.body;
 
   loginSchema.findOne({ username: username }, (err, user) => {
@@ -156,7 +152,7 @@ api.post("/user/ballance/down", urlencodedParser, (req, res) => {
   });
 });
 
-api.post("/user/ballance/up", urlencodedParser, (req, res) => {
+api.post("/user/ballance/up", (req, res) => {
   const { token, ballance } = req.body;
 
   const ballanceNumber = Number(ballance);
@@ -198,7 +194,7 @@ api.post("/user/ballance/up", urlencodedParser, (req, res) => {
   });
 });
 
-api.post("/user/remove", urlencodedParser, (req, res) => {
+api.post("/user/remove", (req, res) => {
   const { token } = req.body;
 
   jwt.verify(token, "supersecret", (err, decoded) => {
@@ -229,7 +225,7 @@ api.post("/user/remove", urlencodedParser, (req, res) => {
   });
 });
 
-api.post("/login", urlencodedParser, async (req, res) => {
+api.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
   loginSchema.findOne({ username: username }, (err, user) => {
@@ -255,7 +251,7 @@ api.post("/login", urlencodedParser, async (req, res) => {
   });
 });
 
-api.post("/stock/add", urlencodedParser, (req, res) => {
+api.post("/stock/add", (req, res) => {
   const { itemName, itemPrice, itemQuantity } = req.body;
 
   if (itemName === "" || itemPrice === "" || itemQuantity === "") {
@@ -287,7 +283,7 @@ api.post("/stock/add", urlencodedParser, (req, res) => {
   }
 });
 
-api.post("/stock/remove", urlencodedParser, (req, res) => {
+api.post("/stock/remove", (req, res) => {
   const { itemName } = req.body;
 
   if (itemName === "") {
@@ -309,7 +305,7 @@ api.post("/stock/remove", urlencodedParser, (req, res) => {
   }
 });
 
-api.post("/stock/price", urlencodedParser, (req, res) => {
+api.post("/stock/price", (req, res) => {
   const { itemName, itemPrice } = req.body;
 
   if (itemName === "" || itemPrice === "") {
@@ -352,7 +348,7 @@ api.get("/stock/data", (req, res) => {
   });
 });
 
-api.post("/user/cart/add", urlencodedParser, (req, res) => {
+api.post("/user/cart/add", (req, res) => {
   const { token, itemName } = req.body;
 
   if (token === "" || itemName === "") {
@@ -420,7 +416,7 @@ api.post("/user/cart/add", urlencodedParser, (req, res) => {
   }
 });
 
-api.post("/user/cart/quantity", urlencodedParser, (req, res) => {
+api.post("/user/cart/quantity", (req, res) => {
   const { token, itemName, quantity } = req.body;
 
   const newQuantity = Number(quantity);
@@ -484,7 +480,7 @@ api.post("/user/cart/quantity", urlencodedParser, (req, res) => {
   }
 });
 
-api.post("/user/cart/remove", urlencodedParser, (req, res) => {
+api.post("/user/cart/remove", (req, res) => {
   const { token, itemName } = req.body;
 
   if (token === "" || itemName === "") {
@@ -534,7 +530,7 @@ api.post("/user/cart/remove", urlencodedParser, (req, res) => {
   }
 });
 
-api.post("/user/cart/removeall", urlencodedParser, (req, res) => {
+api.post("/user/cart/removeall", (req, res) => {
   const { token } = req.body;
 
   if (token === "") {
@@ -582,7 +578,7 @@ api.post("/user/cart/removeall", urlencodedParser, (req, res) => {
   }
 });
 
-api.post("/user/purchase", urlencodedParser, (req, res) => {
+api.post("/user/purchase", (req, res) => {
   const { token } = req.body;
 
   if (token === "") {
@@ -730,16 +726,23 @@ api.get("/stock/:item", (req, res) => {
   }
 });
 
-api.get("/user/data", urlencodedParser, async (req, res) => {
+api.get("/user/data", async (req, res) => {
   const result = await loginSchema.find();
   res.json({
     data: result,
   });
 });
 
-
-function verifyToken(){
-
+function verifyToken(req, res, next){
+  const bearerHeader = req.headers["authorization"];
+  if (typeof bearerHeader !== "undefined") {
+    const bearer = bearerHeader.split(" ");
+    const bearerToken = bearer[1];
+    req.token = bearerToken;
+    next();
+  } else {
+    res.status(401).send("Not logged in");
+  }
 }
 
 api.listen(port, () => {
