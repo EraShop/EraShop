@@ -23,7 +23,7 @@ const transporter = nodemailer.createTransport({
 
 transporter.use("compile", hbs({
     viewEngine: "express-handlebars",
-    viewPath: "./views/",
+    viewPath: "./mails/",
 }));
 
 const mongoose = require("mongoose");
