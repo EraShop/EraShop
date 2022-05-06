@@ -17,14 +17,17 @@ const transporter = nodemailer.createTransport({
   secure: true,
   auth: {
     user: process.env.MAIL,
-    pass: process.env.MAILPASS
+    pass: process.env.MAILPASS,
   },
 });
 
-transporter.use("compile", hbs({
+transporter.use(
+  "compile",
+  hbs({
     viewEngine: "express-handlebars",
     viewPath: "./mails/",
-}));
+  })
+);
 
 const mongoose = require("mongoose");
 const { append } = require("express/lib/response");
@@ -40,6 +43,7 @@ db.once("open", function () {
 api.use(express.json());
 api.use(cors());
 
+/*
 api.post("/user/new", async (req, res) => {
   const { newUser, newPass, newEmail, newState } = req.body;
 
@@ -70,17 +74,14 @@ api.post("/user/new", async (req, res) => {
             const options = {
               from: "support@erasmustartup.eu",
               to: user.email,
-              subject: "Welcome to ERASHOP",
-              text: "Please click on the link below to login",
-              html: "<a href='https://erasmustartup.eu/login'>Login</a>",
+              subject: "Welcome to Era Store",
+              template: "welcome",
             };
-            setTimeout(() => {
-              transporter.sendMail(options, (err, info) => {
-                if (err) {
-                  console.log(err);
-                }
-              });
-            }, 10000);
+            transporter.sendMail(options, (err, info) => {
+              if (err) {
+                console.log(err);
+              }
+            });
           })
           .catch((err) => {
             res.status(500).send(err);
@@ -90,6 +91,8 @@ api.post("/user/new", async (req, res) => {
     });
   }
 });
+
+*/
 
 api.post("/user/changePass", verifyToken, (req, res) => {
   const { username, newPass } = req.body;
@@ -105,13 +108,8 @@ api.post("/user/changePass", verifyToken, (req, res) => {
         const options = {
           from: "",
           to: user.email,
-          subject: "Changed password",
-          text:
-            "Hi, " +
-            user.username +
-            " your password has been changed" +
-            "\n" +
-            "If it was not you, please contact us.",
+          subject: "Changed password on Era Store",
+          template: "password",
         };
         setTimeout(() => {
           transporter.sendMail(options, (err, info) => {
@@ -212,7 +210,7 @@ api.post("/login", async (req, res) => {
     if (user) {
       if (bcrypt.compare(password, user.password)) {
         let token = jwt.sign({ username: username }, "supersecret", {
-          expiresIn: "10s",
+          expiresIn: "3d",
         });
         res.status(200).json(token);
       } else {
@@ -512,38 +510,24 @@ api.post("/user/purchase", verifyToken, (req, res) => {
                     }
                   }
                 );
+                const path = `./files/${item.item.toLowerCase()}.pdf`;
                 const options = {
-                  from: "support@erasmustartup.eu",
+                  from: process.env.MAIL,
                   to: user.email,
-                  subject: "EraShop Purchase",
-                  text:
-                    "Thank you for your purchase, we hope you enjoy it. Your purchase details are below: \n" +
-                    user.cart
-                      .map(
-                        (item) =>
-                          "Product name: " +
-                          item.name +
-                          "\n" +
-                          "Prodcut price: " +
-                          item.price +
-                          "\n" +
-                          "\n"
-                      )
-                      .join("\n") +
-                    "\nTotal Price: " +
-                    totalPrice +
-                    "\nYour ballance is now: " +
-                    user.ballance -
-                    totalPrice +
-                    "\n\nThank you for shopping with EraShop",
+                  subject: "Your EraStore Purchase",
+                  template: "purchase",
+                  attachments: [
+                    {
+                      filename: item.item + ".pdf",
+                      path: path,
+                    },
+                  ],
                 };
-                setTimeout(() => {
-                  transporter.sendMail(options, (err, info) => {
-                    if (err) {
-                      console.log(err);
-                    }
-                  });
-                }, 10000);
+                transporter.sendMail(options, (err, info) => {
+                  if (err) {
+                    console.log(err);
+                  }
+                });
               } else {
                 res.status(400).send("Error: Insufficient stock");
               }
@@ -557,6 +541,39 @@ api.post("/user/purchase", verifyToken, (req, res) => {
       res.status(401).send("Wrong token");
     }
   });
+});
+
+//Remove item from user owned items
+api.post("/user/owned/remove", (req, res) => {
+  const { username, itemName } = req.body;
+
+  if (itemName === "") {
+    res.status(400).send("Error: token and itemName are empty");
+  } else {
+    loginSchema.findOne({ username }, (err, user) => {
+      if (user) {
+        loginSchema.findOneAndUpdate(
+          { username },
+          {
+            $pull: {
+              ownedItems: {
+                item: itemName,
+              },
+            },
+          },
+          (err, user) => {
+            if (err) {
+              res.status(500).send(err);
+            } else {
+              res.status(200).send("Item removed");
+            }
+          }
+        );
+      } else {
+        res.status(404).send("User not found");
+      }
+    });
+  }
 });
 
 api.get("/stock/:item", (req, res) => {
@@ -577,24 +594,21 @@ api.get("/stock/:item", (req, res) => {
   }
 });
 
-
-
-api.get('/kafka', verifyToken, async (req, res) => {
-  jwt.verify(req.token, 'supersecret', function (err, decoded) {
+api.get("/kafka", verifyToken, async (req, res) => {
+  jwt.verify(req.token, "supersecret", function (err, decoded) {
     if (!err) {
       loginSchema.findOne({ username: decoded.username }, (err, user) => {
         if (user) {
-          res.status(200)
-        }
-        else {
+          res.status(200);
+        } else {
           res.status(404).send("User not found");
         }
-      })
+      });
     } else {
       res.status(401).send("Forbidden");
     }
-  })
-})
+  });
+});
 
 function verifyToken(req, res, next) {
   const bearerHeader = req.headers["authorization"];
@@ -611,20 +625,3 @@ function verifyToken(req, res, next) {
 api.listen(port, () => {
   console.log("localhost/" + port);
 });
-
-function sendMail() {
-  const options = {
-    from: process.env.MAIL,
-    to: "ojta@post.cz",
-    subject: "Welcome to ERASHOP",
-    text: "Welcome to EraShop",
-    template: "welcome",
-  };
-  transporter.sendMail(options, (err, info) => {
-    if (err) {
-      console.log(err);
-    }
-  });
-}
-
-sendMail();
