@@ -9,6 +9,7 @@ const nodemailer = require("nodemailer");
 const hbs = require("nodemailer-express-handlebars");
 const loginSchema = require("./Schema/loginSchema");
 const stockSchema = require("./Schema/stockSchema");
+require("dotenv").config();
 
 const transporter = nodemailer.createTransport({
   host: "smtp.seznam.cz",
@@ -20,13 +21,10 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-transporter.use(
-  "compile",
-  hbs({
+transporter.use("compile", hbs({
     viewEngine: "express-handlebars",
-    viewPath: "./views",
-  })
-);
+    viewPath: "./views/",
+}));
 
 const mongoose = require("mongoose");
 const { append } = require("express/lib/response");
@@ -598,7 +596,6 @@ api.get('/kafka', verifyToken, async (req, res) => {
   })
 })
 
-
 function verifyToken(req, res, next) {
   const bearerHeader = req.headers["authorization"];
   if (typeof bearerHeader !== "undefined") {
@@ -617,10 +614,10 @@ api.listen(port, () => {
 
 function sendMail() {
   const options = {
-    from: "support@erasmustartup.eu",
+    from: process.env.MAIL,
     to: "ojta@post.cz",
     subject: "Welcome to ERASHOP",
-    text: "Welcome to ERASHOP, please click on the link below to login",
+    text: "Welcome to EraShop",
     template: "welcome",
   };
   transporter.sendMail(options, (err, info) => {
