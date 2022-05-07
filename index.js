@@ -42,7 +42,7 @@ db.once("open", function () {
 });
 api.use(express.json());
 api.use(cors());
-api.use('/images', express.static(__dirname + '/images'));
+api.use("/images", express.static(__dirname + "/images"));
 
 api.post("/user/new", async (req, res) => {
   const { newUser, newPass, newEmail, newState } = req.body;
@@ -54,6 +54,7 @@ api.post("/user/new", async (req, res) => {
   date.setHours(date.getHours() + 2);
 
   if (newUser === "" || newPass === "" || newEmail === "" || newState === "") {
+    res.status(400).send("Please fill all fields");
   } else {
     loginSchema.findOne({ username: newUser }, (err, user) => {
       if (user) {
@@ -267,22 +268,44 @@ api.post("/user/cart/add", verifyToken, (req, res) => {
             stockSchema.findOne({ name: itemName }, (err, item) => {
               if (item) {
                 if (item.quantity > 0) {
-                  if (user.cart.includes(itemName)) {
-                    user.cart.forEach((item) => {
-                      if (item.name === itemName) {
-                        item.quantity += 1;
+                  if (!user.cart.includes(itemName)
+                  ) {
+                    loginSchema.findOneAndUpdate(
+                      { username: decoded.username },
+                      {
+                        $push: {
+                          cart: {
+                            name: item.name,
+                            price: item.price,
+                            quantity: 1,
+                          },
+                        },
+                      },
+                      (err, user) => {
+                        if (err) {
+                          res.status(500).send(err);
+                        }
                       }
-                    });
+                    );
+                    res.status(200).send("Item added to cart");
                   } else {
-                    user.cart.push({
-                      name: itemName,
-                      quantity: 1,
-                    });
+                    loginSchema.findOneAndUpdate(
+                      { username: decoded.username },
+                      {
+                        $inc: {
+                          [`cart.$.quantity`]: 1,
+                        },
+                      },
+                      (err, user) => {
+                        if (err) {
+                          res.status(500).send(err);
+                        }
+                      }
+                    );
+                    res.status(200).send("Item quantity increased");
                   }
-                  user.save();
-                  res.status(200).send("Item added to cart");
                 } else {
-                  res.status(400).send("Error: item is out of stock");
+                  res.status(400).send("Error: item out of stock");
                 }
               } else {
                 res.status(400).send("Error: item not found");
@@ -550,7 +573,6 @@ api.get("/kafka", verifyToken, async (req, res) => {
     }
   });
 });
-
 
 function verifyToken(req, res, next) {
   const bearerHeader = req.headers["authorization"];
