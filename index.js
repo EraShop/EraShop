@@ -43,7 +43,7 @@ db.once("open", function () {
 api.use(express.json());
 api.use(cors());
 
-api.post("/user/new", async (req, res) => {
+/*api.post("/user/new", async (req, res) => {
   const { newUser, newPass, newEmail, newState } = req.body;
 
   const salt = await bcrypt.genSalt(12);
@@ -90,6 +90,7 @@ api.post("/user/new", async (req, res) => {
     });
   }
 });
+*/
 
 api.post("/user/changePass", verifyToken, (req, res) => {
   const { username, newPass } = req.body;
