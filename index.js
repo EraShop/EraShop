@@ -42,6 +42,7 @@ db.once("open", function () {
 });
 api.use(express.json());
 api.use(cors());
+api.use('/images', express.static(__dirname + '/images'));
 
 api.post("/user/new", async (req, res) => {
   const { newUser, newPass, newEmail, newState } = req.body;
@@ -607,6 +608,7 @@ api.get("/kafka", verifyToken, async (req, res) => {
     }
   });
 });
+
 
 function verifyToken(req, res, next) {
   const bearerHeader = req.headers["authorization"];
