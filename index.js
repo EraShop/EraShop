@@ -147,9 +147,23 @@ api.post("/login", async (req, res) => {
 });
 
 api.post("/stock/add", (req, res) => {
-  const { itemName, itemPrice, itemDescription, itemMaterial, itemOrigin ,itemQuantity } = req.body;
+  const {
+    itemName,
+    itemPrice,
+    itemDescription,
+    itemMaterial,
+    itemOrigin,
+    itemQuantity,
+  } = req.body;
 
-  if (itemName === "" || itemPrice === "" || itemDescription === "" || itemQuantity === "" || itemMaterial === "" || itemOrigin === "") {
+  if (
+    itemName === "" ||
+    itemPrice === "" ||
+    itemDescription === "" ||
+    itemQuantity === "" ||
+    itemMaterial === "" ||
+    itemOrigin === ""
+  ) {
     res.status(400).send("Error: requests are empty");
   } else {
     const schema = new stockSchema({
@@ -252,27 +266,22 @@ api.post("/user/cart/add", verifyToken, (req, res) => {
             stockSchema.findOne({ name: itemName }, (err, item) => {
               if (item) {
                 if (item.quantity > 0) {
-                  loginSchema.findOneAndUpdate(
-                    { username: decoded.username },
-                    {
-                      $push: {
-                        cart: {
-                          item: itemName,
-                          price: item.price,
-                          quantity: 1,
-                        },
-                      },
-                    },
-                    (err, user) => {
-                      if (err) {
-                        res.status(500).send(err);
-                      } else {
-                        res.status(200).send("Item added to cart");
+                  if (user.cart.includes(itemName)) {
+                    user.cart.forEach((item) => {
+                      if (item.name === itemName) {
+                        item.quantity += 1;
                       }
-                    }
-                  );
+                    });
+                  } else {
+                    user.cart.push({
+                      name: itemName,
+                      quantity: 1,
+                    });
+                  }
+                  user.save();
+                  res.status(200).send("Item added to cart");
                 } else {
-                  res.status(400).send("Error: item out of stock");
+                  res.status(400).send("Error: item is out of stock");
                 }
               } else {
                 res.status(400).send("Error: item not found");
