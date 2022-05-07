@@ -288,6 +288,23 @@ api.get("/stock/data", (req, res) => {
   });
 });
 
+//Get data about user by token
+api.get("/user/data", verifyToken, (req, res) => {
+  jwt.verify(req.token, "supersecret", (err, decoded) => {
+    if (err) {
+      res.status(401).send("Not logged in");
+    } else {
+      loginSchema.findOne({ username: decoded.username }, (err, user) => {
+        if (user) {
+          res.status(200).json(user);
+        } else {
+          res.status(400).send("Error: user not found");
+        }
+      });
+    }
+  });
+});
+
 api.post("/user/cart/add", verifyToken, (req, res) => {
   const { itemName } = req.body;
 
@@ -538,39 +555,6 @@ api.post("/user/purchase", verifyToken, (req, res) => {
       res.status(401).send("Wrong token");
     }
   });
-});
-
-//Remove item from user owned items
-api.post("/user/owned/remove", (req, res) => {
-  const { username, itemName } = req.body;
-
-  if (itemName === "") {
-    res.status(400).send("Error: token and itemName are empty");
-  } else {
-    loginSchema.findOne({ username }, (err, user) => {
-      if (user) {
-        loginSchema.findOneAndUpdate(
-          { username },
-          {
-            $pull: {
-              ownedItems: {
-                item: itemName,
-              },
-            },
-          },
-          (err, user) => {
-            if (err) {
-              res.status(500).send(err);
-            } else {
-              res.status(200).send("Item removed");
-            }
-          }
-        );
-      } else {
-        res.status(404).send("User not found");
-      }
-    });
-  }
 });
 
 api.get("/stock/:item", (req, res) => {
