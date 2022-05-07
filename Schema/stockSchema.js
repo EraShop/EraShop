@@ -7,6 +7,7 @@ const stockSchema = new mongoose.Schema({
   material: String,
   origin: String,
   quantity: Number,
+  photos: Number
 });
 
 module.exports = mongoose.model('Stock', stockSchema, 'Stock');
