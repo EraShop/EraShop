@@ -71,7 +71,7 @@ api.post("/user/new", async (req, res) => {
           .then(() => {
             res.status(200).send("User created");
             const options = {
-              from: "support@erasmustartup.eu",
+              from: process.env.MAIL,
               to: user.email,
               subject: "Welcome to Era Store",
               template: "welcome",
@@ -84,119 +84,46 @@ api.post("/user/new", async (req, res) => {
           })
           .catch((err) => {
             res.status(500).send(err);
-            console.log(err);
           });
       }
     });
   }
 });
 
-api.post("/user/changePass", verifyToken, (req, res) => {
-  const { username, newPass } = req.body;
+api.post("/user/changePass", verifyToken, async (req, res) => {
+  const { newPass } = req.body;
 
-  if (username === "" || newPass === "") {
+  const salt = await bcrypt.genSalt(12);
+  const hashed = await bcrypt.hash(newPass, salt);
+
+  if (hashed === "") {
     res.status(400).send("Error: username and newPass are empty");
   } else {
-    loginSchema.findOne({ username: username }, (err, user) => {
-      if (user) {
-        user.password = newPass;
-        user.save();
-        res.status(200).send("Password changed");
-        const options = {
-          from: "",
-          to: user.email,
-          subject: "Changed password on Era Store",
-          template: "password",
-        };
-        setTimeout(() => {
-          transporter.sendMail(options, (err, info) => {
-            if (err) {
-              console.log(err);
-            }
-          });
-        }, 10000);
-      } else {
-        res.status(400).send("Error: user not found");
-      }
-    });
-  }
-});
-
-api.post("/user/ballance/down", verifyToken, (req, res) => {
-  const { username, ballance } = req.body;
-
-  loginSchema.findOne({ username: username }, (err, user) => {
-    if (user) {
-      console.log(user);
-      if (user.ballance >= ballance) {
-        loginSchema.findOneAndUpdate(
-          { username: username },
-          { $set: { ballance: user.ballance - ballance } },
-          (err, user) => {
-            if (err) {
-              res.status(500).send(err);
-            } else {
-              res.status(200).send("Ballance updated");
-            }
-          }
-        );
-      } else {
-        res.status(400).send("Error: not enough ballance");
-      }
-    } else {
-      res.status(400).send("Error: user not found");
-    }
-  });
-});
-
-api.post("/user/ballance/up", verifyToken, (req, res) => {
-  const { ballance } = req.body;
-
-  const ballanceNumber = Number(ballance);
-
-  jwt.verify(req.token, "supersecret", (err, decoded) => {
-    if (err) {
-      res.status(401).send("Not logged in");
-    } else {
+    jwt.verify(req.token, "supersecret", (err, decoded) => {
       loginSchema.findOne({ username: decoded.username }, (err, user) => {
         if (user) {
-          loginSchema.findOneAndUpdate(
-            { username: decoded.username },
-            { $set: { ballance: user.ballance + ballanceNumber } },
-            (err, user) => {
+          user.password = hashed;
+          user.save();
+          res.status(200).send("Password changed");
+          const options = {
+            from: process.env.MAIL,
+            to: user.email,
+            subject: "Changed password on Era Store",
+            template: "password",
+          };
+          setTimeout(() => {
+            transporter.sendMail(options, (err, info) => {
               if (err) {
-                res.status(500).send(err);
-              } else {
-                res.status(200).send("Ballance updated");
+                console.log(err);
               }
-            }
-          );
+            });
+          }, 10000);
         } else {
           res.status(400).send("Error: user not found");
         }
       });
-    }
-  });
-});
-
-api.post("/user/remove", verifyToken, (req, res) => {
-  jwt.verify(req.token, "supersecret", (err, decoded) => {
-    if (err) {
-      res.status(401).send("Not logged in");
-    } else {
-      loginSchema.findOneAndDelete(
-        { username: decoded.username },
-        (err, user) => {
-          if (err) {
-            res.status(500).send(err);
-            console.log(err);
-          } else {
-            res.status(200).send("User deleted");
-          }
-        }
-      );
-    }
-  });
+    });
+  }
 });
 
 api.post("/login", async (req, res) => {
@@ -219,15 +146,18 @@ api.post("/login", async (req, res) => {
   });
 });
 
-api.post("/stock/add", verifyToken, (req, res) => {
-  const { itemName, itemPrice, itemQuantity } = req.body;
+api.post("/stock/add", (req, res) => {
+  const { itemName, itemPrice, itemDescription, itemMaterial, itemOrigin ,itemQuantity } = req.body;
 
-  if (itemName === "" || itemPrice === "" || itemQuantity === "") {
+  if (itemName === "" || itemPrice === "" || itemDescription === "" || itemQuantity === "" || itemMaterial === "" || itemOrigin === "") {
     res.status(400).send("Error: requests are empty");
   } else {
     const schema = new stockSchema({
       name: itemName,
       price: itemPrice,
+      description: itemDescription,
+      material: itemMaterial,
+      origin: itemOrigin,
       quantity: itemQuantity,
     })
 
@@ -296,7 +226,11 @@ api.get("/user/data", verifyToken, (req, res) => {
     } else {
       loginSchema.findOne({ username: decoded.username }, (err, user) => {
         if (user) {
-          res.status(200).json(user);
+          res.status(200).json({
+            username: user.username,
+            ballance: user.ballance,
+            email: user.email,
+          });
         } else {
           res.status(400).send("Error: user not found");
         }
@@ -355,7 +289,6 @@ api.post("/user/cart/add", verifyToken, (req, res) => {
   }
 });
 
-//Get data from user cart
 api.get("/user/cart/data", verifyToken, (req, res) => {
   jwt.verify(req.token, "supersecret", (err, decoded) => {
     if (err) {
