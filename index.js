@@ -43,7 +43,7 @@ db.once("open", function () {
 api.use(express.json());
 api.use(cors());
 
-/*api.post("/user/new", async (req, res) => {
+api.post("/user/new", async (req, res) => {
   const { newUser, newPass, newEmail, newState } = req.body;
 
   const salt = await bcrypt.genSalt(12);
@@ -90,7 +90,6 @@ api.use(cors());
     });
   }
 });
-*/
 
 api.post("/user/changePass", verifyToken, (req, res) => {
   const { username, newPass } = req.body;
@@ -354,6 +353,23 @@ api.post("/user/cart/add", verifyToken, (req, res) => {
       }
     });
   }
+});
+
+//Get data from user cart
+api.get("/user/cart/data", verifyToken, (req, res) => {
+  jwt.verify(req.token, "supersecret", (err, decoded) => {
+    if (err) {
+      res.status(401).send("Not logged in");
+    } else {
+      loginSchema.findOne({ username: decoded.username }, (err, user) => {
+        if (user) {
+          res.status(200).json(user.cart);
+        } else {
+          res.status(400).send("Error: user not found");
+        }
+      });
+    }
+  });
 });
 
 api.post("/user/cart/quantity", verifyToken, (req, res) => {
