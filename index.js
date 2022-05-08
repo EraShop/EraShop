@@ -32,8 +32,8 @@ transporter.use(
 const mongoose = require("mongoose");
 const { append } = require("express/lib/response");
 mongoose.connect(
-  "mongodb+srv://Vojta:fQpGpaNnhOfyCZFy@erashop.iijwj.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
-);
+process.env.MONGODB
+  );
 
 const db = mongoose.connection;
 db.on("error", console.error.bind(console, "Connection error:"));
@@ -102,7 +102,7 @@ api.post("/user/changePass", verifyToken, async (req, res) => {
   if (hashed === "") {
     res.status(400).send("Error: username and newPass are empty");
   } else {
-    jwt.verify(req.token, "supersecret", (err, decoded) => {
+    jwt.verify(req.token, process.env.JWT, (err, decoded) => {
       loginSchema.findOne({ username: decoded.username }, (err, user) => {
         if (user) {
           user.password = hashed;
@@ -136,7 +136,7 @@ api.post("/login", async (req, res) => {
     console.log(user);
     if (user) {
       if (bcrypt.compare(password, user.password)) {
-        let token = jwt.sign({ username: username }, "supersecret", {
+        let token = jwt.sign({ username: username }, process.env.JWT, {
           expiresIn: "3d",
         });
         res.status(200).json(token);
@@ -237,7 +237,7 @@ api.get("/stock/data", (req, res) => {
 
 //Get data about user by token
 api.get("/user/data", verifyToken, (req, res) => {
-  jwt.verify(req.token, "supersecret", (err, decoded) => {
+  jwt.verify(req.token, process.env.JWT, (err, decoded) => {
     if (err) {
       res.status(401).send("Not logged in");
     } else {
@@ -262,7 +262,7 @@ api.post("/user/cart/add", verifyToken, (req, res) => {
   if (itemName === "") {
     res.status(400).send("Error: token, itemName are empty");
   } else {
-    jwt.verify(req.token, "supersecret", function (err, decoded) {
+    jwt.verify(req.token, process.env.JWT, function (err, decoded) {
       if (!err) {
         loginSchema.findOne({ username: decoded.username }, (err, user) => {
           if (user) {
@@ -324,7 +324,7 @@ api.post("/user/cart/add", verifyToken, (req, res) => {
 });
 
 api.get("/user/cart/data", verifyToken, (req, res) => {
-  jwt.verify(req.token, "supersecret", (err, decoded) => {
+  jwt.verify(req.token, process.env.JWT, (err, decoded) => {
     if (err) {
       res.status(401).send("Not logged in");
     } else {
@@ -347,7 +347,7 @@ api.post("/user/cart/quantity", verifyToken, (req, res) => {
   if (itemName === "" || quantity === "") {
     res.status(400).send("Error: token, itemName and quantity are empty");
   } else {
-    jwt.verify(req.token, "supersecret", function (err, decoded) {
+    jwt.verify(req.token, process.env.JWT, function (err, decoded) {
       if (!err) {
         loginSchema.findOne({ username: decoded.username }, (err, user) => {
           if (user) {
@@ -394,7 +394,7 @@ api.post("/user/cart/remove", verifyToken, (req, res) => {
   if (itemName === "") {
     res.status(400).send("Error: token and itemName are empty");
   } else {
-    jwt.verify(req.token, "supersecret", function (err, decoded) {
+    jwt.verify(req.token, process.env.JWT, function (err, decoded) {
       if (!err) {
         loginSchema.findOne({ username: decoded.username }, (err, user) => {
           if (user) {
@@ -427,7 +427,7 @@ api.post("/user/cart/remove", verifyToken, (req, res) => {
 });
 
 api.post("/user/cart/removeall", verifyToken, (req, res) => {
-  jwt.verify(req.token, "supersecret", function (err, decoded) {
+  jwt.verify(req.token, process.env.JWT, function (err, decoded) {
     if (!err) {
       loginSchema.findOne({ username: decoded.username }, (err, user) => {
         if (user) {
@@ -457,7 +457,7 @@ api.post("/user/cart/removeall", verifyToken, (req, res) => {
 });
 
 api.post("/user/purchase", verifyToken, (req, res) => {
-  jwt.verify(req.token, "supersecret", function (err, decoded) {
+  jwt.verify(req.token, process.env.JWT, function (err, decoded) {
     if (!err) {
       loginSchema.findOne({ username: decoded.username }, (err, user) => {
         if (user) {
@@ -560,7 +560,7 @@ api.get("/stock/:item", (req, res) => {
 });
 
 api.get("/kafka", verifyToken, async (req, res) => {
-  jwt.verify(req.token, "supersecret", function (err, decoded) {
+  jwt.verify(req.token, process.env.JWT, function (err, decoded) {
     if (!err) {
       loginSchema.findOne({ username: decoded.username }, (err, user) => {
         if (user) {
