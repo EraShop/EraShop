@@ -42,7 +42,9 @@ api.use(express.json());
 api.use(cors());
 api.use("/images", express.static(__dirname + "/images"));
 api.use(express.static(__dirname + "/dist"));
-
+api.get((req, res) => {
+  res.sendFile(path.join(__dirname, "/dist", "index.html"));
+});
 api.post("/user/new", async (req, res) => {
   const { newUser, newPass, newEmail, newState } = req.body;
 
