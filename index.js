@@ -327,7 +327,15 @@ api.get("/user/cart/data", verifyToken, (req, res) => {
     } else {
       loginSchema.findOne({ username: decoded.username }, (err, user) => {
         if (user) {
-          res.status(200).json(user.cart);
+          //Make total price
+          let totalPrice = 0;
+          user.cart.forEach((item) => {
+            totalPrice += item.price * item.quantity;
+          });
+          res.status(200).json({
+            cart: user.cart,
+            totalPrice: totalPrice,
+          });
         } else {
           res.status(400).send("Error: user not found");
         }
@@ -393,6 +401,7 @@ api.post("/user/cart/remove", verifyToken, (req, res) => {
   } else {
     jwt.verify(req.token, process.env.JWT, function (err, decoded) {
       if (!err) {
+        console.log(itemName);
         loginSchema.findOneAndUpdate(
           { username: decoded.username },
           {
