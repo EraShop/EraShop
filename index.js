@@ -9,6 +9,8 @@ const nodemailer = require("nodemailer");
 const hbs = require("nodemailer-express-handlebars");
 const loginSchema = require("./Schema/loginSchema");
 const stockSchema = require("./Schema/stockSchema");
+const history = require('connect-history-api-fallback')
+const path = require("path");
 require("dotenv").config();
 
 const transporter = nodemailer.createTransport({
@@ -40,11 +42,16 @@ db.once("open", function () {
 });
 api.use(express.json());
 api.use(cors());
+const staticFileMiddleware = express.static(path.join(__dirname + "/dist"));
+
+api.use(staticFileMiddleware)
+api.use(history())
+api.use(staticFileMiddleware)
 api.use("/images", express.static(__dirname + "/images"));
-api.use(express.static(__dirname + "/dist"));
-api.get((req, res) => {
-  res.sendFile(path.join(__dirname, "/dist", "index.html"));
-});
+
+api.get('/', (req, res) => {
+  res.render(path.join(__dirname + "/dist/index.html"))
+})
 api.post("/user/new", async (req, res) => {
   const { newUser, newPass, newEmail, newState } = req.body;
 
