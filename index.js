@@ -31,9 +31,7 @@ transporter.use(
 
 const mongoose = require("mongoose");
 const { append } = require("express/lib/response");
-mongoose.connect(
-process.env.MONGODB
-  );
+mongoose.connect(process.env.MONGODB);
 
 const db = mongoose.connection;
 db.on("error", console.error.bind(console, "Connection error:"));
@@ -269,8 +267,7 @@ api.post("/user/cart/add", verifyToken, (req, res) => {
             stockSchema.findOne({ name: itemName }, (err, item) => {
               if (item) {
                 if (item.quantity > 0) {
-                  if (!user.cart.includes(itemName)
-                  ) {
+                  if (!user.cart.includes(itemName)) {
                     loginSchema.findOneAndUpdate(
                       { username: decoded.username },
                       {
@@ -396,31 +393,27 @@ api.post("/user/cart/remove", verifyToken, (req, res) => {
   } else {
     jwt.verify(req.token, process.env.JWT, function (err, decoded) {
       if (!err) {
-        loginSchema.findOne({ username: decoded.username }, (err, user) => {
-          if (user) {
-            loginSchema.findOneAndUpdate(
-              { username: decoded.username },
-              {
-                $pull: {
-                  cart: {
-                    item: itemName,
-                  },
-                },
+        loginSchema.findOneAndUpdate(
+          { username: decoded.username },
+          {
+            $pull: {
+              cart: {
+                name: itemName,
               },
-              (err, user) => {
-                if (err) {
-                  res.status(500).send(err);
-                } else {
-                  res.status(200).send("Item removed");
-                }
-              }
-            );
-          } else {
-            res.status(404).send("User not found");
+            },
+          },
+          (err, user) => {
+            if (err) {
+              res.status(500).send(err);
+            } else {
+              res.status(200).send("Item removed from cart");
+            }
+
+            console.log(user);
           }
-        });
+        );
       } else {
-        res.status(401).send("Wrong token");
+        res.status(401).send("Not logged in");
       }
     });
   }
