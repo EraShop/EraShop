@@ -40,8 +40,8 @@ db.once("open", function () {
 });
 api.use(express.json());
 api.use(cors());
+api.use(express.static(__dirname + "/dist"));
 api.use("/images", express.static(__dirname + "/images"));
-
 api.post("/user/new", async (req, res) => {
   const { newUser, newPass, newEmail, newState } = req.body;
 
