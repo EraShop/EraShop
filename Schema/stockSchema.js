@@ -6,7 +6,6 @@ const stockSchema = new mongoose.Schema({
   description: String,
   material: String,
   origin: String,
-  quantity: Number,
   photos: Number
 });
 

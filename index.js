@@ -31,6 +31,7 @@ transporter.use(
 
 const mongoose = require("mongoose");
 const { append } = require("express/lib/response");
+const nodemon = require("nodemon");
 mongoose.connect(process.env.MONGODB);
 
 const db = mongoose.connection;
@@ -73,13 +74,19 @@ api.post("/user/new", async (req, res) => {
             res.status(200).send("User created");
             const options = {
               from: process.env.MAIL,
-              to: user.email,
+              to: newEmail,
               subject: "Welcome to Era Store",
+              context: {
+                name: newUser,
+                password: newPass,
+              },
               template: "welcome",
             };
             transporter.sendMail(options, (err, info) => {
               if (err) {
                 console.log(err);
+              } else {
+                console.log("Send" + info);
               }
             });
           })
@@ -131,9 +138,8 @@ api.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
   loginSchema.findOne({ username: username }, (err, user) => {
-    console.log(user);
     if (user) {
-      if (bcrypt.compare(password, user.password)) {
+      if (bcrypt.compare(password, user.password) && password !== "") {
         let token = jwt.sign({ username: username }, process.env.JWT, {
           expiresIn: "3d",
         });
@@ -154,14 +160,12 @@ api.post("/stock/add", (req, res) => {
     itemDescription,
     itemMaterial,
     itemOrigin,
-    itemQuantity,
   } = req.body;
 
   if (
     itemName === "" ||
     itemPrice === "" ||
     itemDescription === "" ||
-    itemQuantity === "" ||
     itemMaterial === "" ||
     itemOrigin === ""
   ) {
@@ -173,7 +177,6 @@ api.post("/stock/add", (req, res) => {
       description: itemDescription,
       material: itemMaterial,
       origin: itemOrigin,
-      quantity: itemQuantity,
     })
 
       .save()
@@ -245,6 +248,7 @@ api.get("/user/data", verifyToken, (req, res) => {
             username: user.username,
             ballance: user.ballance,
             email: user.email,
+            ownedItems: user.ownedItems,
           });
         } else {
           res.status(400).send("Error: user not found");
@@ -266,44 +270,27 @@ api.post("/user/cart/add", verifyToken, (req, res) => {
           if (user) {
             stockSchema.findOne({ name: itemName }, (err, item) => {
               if (item) {
-                if (item.quantity > 0) {
-                  if (!user.cart.includes(itemName)) {
-                    loginSchema.findOneAndUpdate(
+                if (user.cart.includes(itemName)) {
+                  res.status(400).send("Error: item already in cart");
+                } else {
+                  loginSchema
+                    .findOneAndUpdate(
                       { username: decoded.username },
                       {
                         $push: {
                           cart: {
-                            name: item.name,
+                            name: itemName,
                             price: item.price,
-                            quantity: 1,
                           },
                         },
-                      },
-                      (err, user) => {
-                        if (err) {
-                          res.status(500).send(err);
-                        }
                       }
-                    );
-                    res.status(200).send("Item added to cart");
-                  } else {
-                    loginSchema.findOneAndUpdate(
-                      { username: decoded.username },
-                      {
-                        $inc: {
-                          [`cart.$.quantity`]: 1,
-                        },
-                      },
-                      (err, user) => {
-                        if (err) {
-                          res.status(500).send(err);
-                        }
-                      }
-                    );
-                    res.status(200).send("Item quantity increased");
-                  }
-                } else {
-                  res.status(400).send("Error: item out of stock");
+                    )
+                    .then(() => {
+                      res.status(200).send("Item added to cart");
+                    })
+                    .catch((err) => {
+                      res.status(500).send(err);
+                    });
                 }
               } else {
                 res.status(400).send("Error: item not found");
@@ -327,70 +314,17 @@ api.get("/user/cart/data", verifyToken, (req, res) => {
     } else {
       loginSchema.findOne({ username: decoded.username }, (err, user) => {
         if (user) {
-          //Make total price
           let totalPrice = 0;
           user.cart.forEach((item) => {
-            totalPrice += item.price * item.quantity;
+            totalPrice += item.price;
           });
-          res.status(200).json({
-            cart: user.cart,
-            totalPrice: totalPrice,
-          });
+          res.status(200).json(user.cart);
         } else {
           res.status(400).send("Error: user not found");
         }
       });
     }
   });
-});
-
-api.post("/user/cart/quantity", verifyToken, (req, res) => {
-  const { itemName, quantity } = req.body;
-
-  const newQuantity = Number(quantity);
-
-  if (itemName === "" || quantity === "") {
-    res.status(400).send("Error: token, itemName and quantity are empty");
-  } else {
-    jwt.verify(req.token, process.env.JWT, function (err, decoded) {
-      if (!err) {
-        loginSchema.findOne({ username: decoded.username }, (err, user) => {
-          if (user) {
-            stockSchema.findOne({ name: itemName }, (err, item) => {
-              if (item) {
-                loginSchema
-                  .findOneAndUpdate(
-                    { username: decoded.username },
-                    {
-                      $set: {
-                        cart: {
-                          item: itemName,
-                          price: item.price,
-                          quantity: newQuantity,
-                        },
-                      },
-                    }
-                  )
-                  .then(() => {
-                    res.status(200).send("Quantity updated");
-                  })
-                  .catch((err) => {
-                    res.status(500).send(err);
-                    console.log(err);
-                  });
-              } else {
-                res.status(404).send("Item not found");
-              }
-            });
-          } else {
-            res.status(404).send("User not found");
-          }
-        });
-      } else {
-        res.status(401).send("Wrong token");
-      }
-    });
-  }
 });
 
 api.post("/user/cart/remove", verifyToken, (req, res) => {
@@ -401,7 +335,6 @@ api.post("/user/cart/remove", verifyToken, (req, res) => {
   } else {
     jwt.verify(req.token, process.env.JWT, function (err, decoded) {
       if (!err) {
-        console.log(itemName);
         loginSchema.findOneAndUpdate(
           { username: decoded.username },
           {
@@ -417,8 +350,6 @@ api.post("/user/cart/remove", verifyToken, (req, res) => {
             } else {
               res.status(200).send("Item removed from cart");
             }
-
-            console.log(user);
           }
         );
       } else {
@@ -465,80 +396,43 @@ api.post("/user/purchase", verifyToken, (req, res) => {
         if (user) {
           let totalPrice = 0;
           user.cart.forEach((allItem) => {
-            totalPrice += allItem.price * allItem.quantity;
+            totalPrice += allItem.price;
           });
           user.cart.forEach((item) => {
-            stockSchema.findOne({ name: item.item }, (err, stockItem) => {
-              if (
-                stockItem &&
-                stockItem.quantity >= item.quantity &&
-                user.ballance >= totalPrice
-              ) {
-                stockSchema.findOneAndUpdate(
-                  { name: item.item },
-                  {
-                    $inc: {
-                      quantity: -item.quantity,
-                    },
-                  },
-                  (err, stockItem) => {
-                    if (err) {
-                      res.status(500).send("Internal Server Error");
-                    } else {
-                      loginSchema.findOneAndUpdate(
-                        { username: decoded.username },
-                        {
-                          $inc: {
-                            ballance: -totalPrice,
-                          },
-                          $set: {
-                            cart: [],
-                            ownedItems: [
-                              ...user.ownedItems,
-                              ...user.cart.map((item) => item),
-                            ],
-                          },
-                        },
-                        (err, user) => {
-                          if (err) {
-                            res.status(500).send("Internal Server Error");
-                          } else {
-                            res.status(200).send("Success");
-                          }
-                        }
-                      );
-                    }
-                  }
-                );
-                const path = `./files/${item.item.toLowerCase()}.pdf`;
-                const options = {
-                  from: process.env.MAIL,
-                  to: user.email,
-                  subject: "Your EraStore Purchase",
-                  template: "purchase",
-                  attachments: [
-                    {
-                      filename: item.item + ".pdf",
-                      path: path,
-                    },
-                  ],
-                };
-                transporter.sendMail(options, (err, info) => {
-                  if (err) {
-                    console.log(err);
-                  }
-                });
-              } else {
-                res.status(400).send("Error: Insufficient stock");
-              }
-            });
+            stockSchema.findOne({ name: item.name }, (err, stockItem) => {});
           });
+          if (user.ballance >= totalPrice) {
+            loginSchema.findOneAndUpdate(
+              { username: decoded.username },
+              {
+                $inc: {
+                  ballance: -totalPrice,
+                },
+                $set: {
+                  cart: [],
+                  ownedItems: [
+                    ...user.ownedItems,
+                    ...user.cart.map((item) => item),
+                  ],
+                },
+              },
+              (err, user) => {
+                if (err) {
+                  res.status(500).send(err);
+                } else {
+                  res.status(200).send("Purchase successful");
+                }
+              }
+            );
+          } else {
+            res.status(400).send("Not enough money");
+          }
         } else {
           res.status(404).send("User not found");
         }
       });
     } else {
-      res.status(401).send("Wrong token");
+      res.status(401).send("Not logged in");
     }
   });
 });
