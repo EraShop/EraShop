@@ -159,23 +159,29 @@ api.post("/stock/add", (req, res) => {
     itemDescription,
     itemMaterial,
     itemOrigin,
+    itemPhotos
   } = req.body;
+
+  const price = Number(itemPrice);
+  const photos = Number(itemPhotos);
 
   if (
     itemName === "" ||
     itemPrice === "" ||
     itemDescription === "" ||
     itemMaterial === "" ||
-    itemOrigin === ""
+    itemOrigin === "" ||
+    itemPhotos === ""
   ) {
     res.status(400).send("Error: requests are empty");
   } else {
     const schema = new stockSchema({
       name: itemName,
-      price: itemPrice,
+      price: price,
       description: itemDescription,
       material: itemMaterial,
       origin: itemOrigin,
+      photos: photos,
     })
 
       .save()
