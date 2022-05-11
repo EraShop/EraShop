@@ -6,6 +6,7 @@ const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
+const fs = require("fs");
 const hbs = require("nodemailer-express-handlebars");
 const loginSchema = require("./Schema/loginSchema");
 const stockSchema = require("./Schema/stockSchema");
@@ -32,6 +33,7 @@ transporter.use(
 const mongoose = require("mongoose");
 const { append } = require("express/lib/response");
 const nodemon = require("nodemon");
+const { stringify } = require("querystring");
 mongoose.connect(process.env.MONGODB);
 
 const db = mongoose.connection;
@@ -161,7 +163,9 @@ api.post("/stock/add", (req, res) => {
     itemOrigin,
     itemPhotos
   } = req.body;
-
+if(itemName.includes(" " || /\s/)){
+  itemName.replace(/\s/g, "-");
+}
   const price = Number(itemPrice);
   const photos = Number(itemPhotos);
 
@@ -175,23 +179,37 @@ api.post("/stock/add", (req, res) => {
   ) {
     res.status(400).send("Error: requests are empty");
   } else {
-    const schema = new stockSchema({
-      name: itemName,
-      price: price,
-      description: itemDescription,
-      material: itemMaterial,
-      origin: itemOrigin,
-      photos: photos,
+    stockSchema.findOne({ itemName: itemName }, (err, item) => {
+      if (item) {
+        res.status(400).send("Error: item already exists");
+      } else {
+        const schema = new stockSchema({
+          name: itemName,
+          price: price,
+          description: itemDescription,
+          material: itemMaterial,
+          origin: itemOrigin,
+          photos: photos,
+        })
+        .save()
+        .then(() => {
+          res.status(200).send("Stock added");
+          let itemEditedName = itemName.replace(/\s/g, "-");
+          let dir = __dirname + "/images/";
+          fs.mkdir(dir + itemEditedName, (err) => {
+            if (err) {
+              console.log(err);
+            } else {
+              console.log("Directory created");
+            }
+          })
+        })
+        .catch((err) => {
+          res.status(500).send(err);
+          console.log(err);
+        });
+      }
     })
-
-      .save()
-      .then(() => {
-        res.status(200).send("Stock added");
-      })
-      .catch((err) => {
-        res.status(500).send(err);
-        console.log(err);
-      });
   }
 });
 
@@ -236,6 +254,9 @@ api.get("/stock/data", (req, res) => {
     if (err) {
       req.status(500).send(err);
     } else {
+      for(item of items){
+        item.name = item.name.replace(/-/g, " ");
+      }
       res.status(200).json(items);
     }
   });
@@ -319,6 +340,9 @@ api.get("/user/cart/data", verifyToken, (req, res) => {
     } else {
       loginSchema.findOne({ username: decoded.username }, (err, user) => {
         if (user) {
+          for(item of user.cart){
+            item.name = item.name.replace(/-/g, " ");
+          }
           let totalPrice = 0;
           user.cart.forEach((item) => {
             totalPrice += item.price;
@@ -404,7 +428,7 @@ api.post("/user/purchase", verifyToken, (req, res) => {
             totalPrice += allItem.price;
           });
           user.cart.forEach((item) => {
-            stockSchema.findOne({ name: item.name }, (err, stockItem) => {});
+            stockSchema.findOne({ name: item.name }, (err, stockItem) => { });
           });
           if (user.ballance >= totalPrice) {
             loginSchema.findOneAndUpdate(
@@ -444,14 +468,12 @@ api.post("/user/purchase", verifyToken, (req, res) => {
 
 api.get("/stock/:item", (req, res) => {
   const { item } = req.params;
-  if (item.includes("-")) {
-    item = item.replace(/-/g, " ");
-  }
   if (item === "") {
     res.status(400).send("Error: item is empty");
   } else {
     stockSchema.findOne({ name: item }, (err, item) => {
       if (item) {
+        item.name = item.name.replace(/-/g, " ");
         res.status(200).json(item);
       } else {
         res.status(404).send("Error: item not found");
