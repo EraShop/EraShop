@@ -3,10 +3,8 @@ const mongoose = require('mongoose');
 const stockSchema = new mongoose.Schema({
   name: String,
   price: Number,
-  description: String,
-  material: String,
-  origin: String,
-  photos: Number
+  state: String,
+  file: String
 });
 
 module.exports = mongoose.model('Stock', stockSchema, 'Stock');

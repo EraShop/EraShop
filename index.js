@@ -4,21 +4,40 @@ const api = express();
 const port = 3000;
 const cors = require("cors");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const nodemailer = require("nodemailer");
-const fs = require("fs");
-const hbs = require("nodemailer-express-handlebars");
 const loginSchema = require("./Schema/loginSchema");
 const stockSchema = require("./Schema/stockSchema");
+const nodemailer = require("nodemailer");
+const morgan = require("morgan");
+const jwt = require("jsonwebtoken");
+const hbs = require("nodemailer-express-handlebars");
+
 require("dotenv").config();
 
-const transporter = nodemailer.createTransport({
+//BodyParser
+const bodyParser = require("body-parser");
+var jsonParser = bodyParser.json();
+var urlencodedParser = bodyParser.urlencoded({ extended: false });
+
+//MongoDB
+const mongoose = require("mongoose");
+const { application } = require("express");
+mongoose.connect(
+  "mongodb+srv://Vojta:fQpGpaNnhOfyCZFy@erashop.iijwj.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
+);
+const db = mongoose.connection;
+db.on("error", console.error.bind(console, "Connection error:"));
+db.once("open", function () {
+  console.log("Connected");
+});
+
+//NodeMailer
+let transporter = nodemailer.createTransport({
   host: "smtp.seznam.cz",
   port: 465,
   secure: true,
   auth: {
-    user: process.env.MAIL,
-    pass: process.env.MAILPASS,
+    user: process.env.NODEMAILER_USER,
+    pass: process.env.NODEMAILER_PASS,
   },
 });
 
@@ -30,486 +49,243 @@ transporter.use(
   })
 );
 
-const mongoose = require("mongoose");
-const { append } = require("express/lib/response");
-const nodemon = require("nodemon");
-const { stringify } = require("querystring");
-mongoose.connect(process.env.MONGODB);
-
-const db = mongoose.connection;
-db.on("error", console.error.bind(console, "Connection error:"));
-db.once("open", function () {
-  console.log("Connected");
-});
-api.use(express.json());
 api.use(cors());
-api.use(express.static(__dirname + "/dist"));
-api.use("/images", express.static(__dirname + "/images"));
-api.post("/user/new", async (req, res) => {
-  const { newUser, newPass, newEmail, newState } = req.body;
+api.use(morgan("dev"));
 
-  const salt = await bcrypt.genSalt(12);
-  const hashed = await bcrypt.hash(newPass, salt);
-
-  const date = new Date();
-  date.setHours(date.getHours() + 2);
-
-  if (newUser === "" || newPass === "" || newEmail === "" || newState === "") {
-    res.status(400).send("Please fill all fields");
-  } else {
-    loginSchema.findOne({ username: newUser }, (err, user) => {
-      if (user) {
-        res.send("User already exists");
-      } else {
-        const schema = new loginSchema({
-          username: newUser,
-          password: hashed,
-          email: newEmail,
-          ballance: 100,
-          dateCreated: date,
-          state: newState,
-        })
-
-          .save()
-          .then(() => {
-            res.status(200).send("User created");
-            const options = {
-              from: process.env.MAIL,
-              to: newEmail,
-              subject: "Welcome to Era Store",
-              context: {
-                name: newUser,
-                password: newPass,
-              },
-              template: "welcome",
-            };
-            transporter.sendMail(options, (err, info) => {
-              if (err) {
-                console.log(err);
-              } else {
-                console.log("Send" + info);
-              }
-            });
-          })
-          .catch((err) => {
-            res.status(500).send(err);
-          });
+api.use(async function verifyToken(req, res, next) {
+  if (req.headers["authorization"]) {
+    try {
+      let token = req.headers["authorization"].split(" ")[1];
+      const { username } = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await loginSchema.findOne({ username: username });
+      if (!user) {
+        return res.status(404).json("Not found");
       }
-    });
-  }
-});
-
-api.post("/user/changePass", verifyToken, async (req, res) => {
-  const { newPass } = req.body;
-
-  const salt = await bcrypt.genSalt(12);
-  const hashed = await bcrypt.hash(newPass, salt);
-
-  if (hashed === "") {
-    res.status(400).send("Error: username and newPass are empty");
-  } else {
-    jwt.verify(req.token, process.env.JWT, (err, decoded) => {
-      loginSchema.findOne({ username: decoded.username }, (err, user) => {
-        if (user) {
-          user.password = hashed;
-          user.save();
-          res.status(200).send("Password changed");
-          const options = {
-            from: process.env.MAIL,
-            to: user.email,
-            subject: "Changed password on Era Store",
-            template: "password",
-          };
-          setTimeout(() => {
-            transporter.sendMail(options, (err, info) => {
-              if (err) {
-                console.log(err);
-              }
-            });
-          }, 10000);
-        } else {
-          res.status(400).send("Error: user not found");
-        }
-      });
-    });
-  }
-});
-
-api.post("/login", async (req, res) => {
-  const { username, password } = req.body;
-
-  loginSchema.findOne({ username: username }, (err, user) => {
-    if (user) {
-      if (bcrypt.compare(password, user.password) && password !== "") {
-        let token = jwt.sign({ username: username }, process.env.JWT, {
-          expiresIn: "3d",
-        });
-        res.status(200).json(token);
-      } else {
-        res.status(400).send("Error: wrong password");
-      }
-    } else {
-      res.status(400).send("Error: user not found");
+      req.user = user;
+    } catch (err) {
+      return res.status(500).json({ message: err });
     }
+  }
+  next();
+});
+
+api.put("/login", jsonParser, (req, res) => {
+  if (req.body.username && req.body.password) {
+    loginSchema.findOne({ username: req.body.username }, (err, user) => {
+      if (err) {
+        res.status(500).send("Server error");
+      } else {
+        if (!user) {
+          res.status(404).send("User not found");
+        } else {
+          bcrypt.compare(req.body.password, user.password, (err, result) => {
+            if (err) {
+              res.status(500).send("Server error");
+            } else if (result) {
+              const token = jwt.sign(
+                { username: user.username },
+                process.env.JWT_SECRET,
+                { expiresIn: "1h" },
+                (err, token) => {
+                  if (err) {
+                    res.status(500).send("Server error");
+                  } else {
+                    res.status(200).json({ token });
+                  }
+                }
+              );
+            } else {
+              res.status(401).send("Wrong password");
+            }
+          });
+        }
+      }
+    });
+  } else {
+    res.status(400).send("Bad request");
+  }
+});
+
+api.get("/user", (req, res) => {
+  if (!req.user) {
+    return res.status(401).send("Unauthorized");
+  }
+  return res.status(200).json({
+    username: req.user.username,
+    email: req.user.email,
+    state: req.user.state,
+    ballance: req.user.ballance,
   });
 });
 
-api.post("/stock/add", (req, res) => {
-  const {
-    itemName,
-    itemPrice,
-    itemDescription,
-    itemMaterial,
-    itemOrigin,
-    itemPhotos
-  } = req.body;
-if(itemName.includes(" " || /\s/)){
-  itemName.replace(/\s/g, "-");
-}
-  const price = Number(itemPrice);
-  const photos = Number(itemPhotos);
-
+api.post("/user/new", jsonParser, (req, res) => {
   if (
-    itemName === "" ||
-    itemPrice === "" ||
-    itemDescription === "" ||
-    itemMaterial === "" ||
-    itemOrigin === "" ||
-    itemPhotos === ""
+    req.body.username &&
+    req.body.password &&
+    req.body.email &&
+    req.body.state
   ) {
-    res.status(400).send("Error: requests are empty");
-  } else {
-    stockSchema.findOne({ itemName: itemName }, (err, item) => {
-      if (item) {
-        res.status(400).send("Error: item already exists");
+    loginSchema.findOne({ username: req.body.username }, (err, user) => {
+      if (user) {
+        res.status(404).send("User found");
       } else {
-        const schema = new stockSchema({
-          name: itemName,
-          price: price,
-          description: itemDescription,
-          material: itemMaterial,
-          origin: itemOrigin,
-          photos: photos,
-        })
-        .save()
-        .then(() => {
-          res.status(200).send("Stock added");
-          let itemEditedName = itemName.replace(/\s/g, "-");
-          let dir = __dirname + "/images/";
-          fs.mkdir(dir + itemEditedName, (err) => {
-            if (err) {
-              console.log(err);
-            } else {
-              console.log("Directory created");
-            }
-          })
-        })
-        .catch((err) => {
-          res.status(500).send(err);
-          console.log(err);
+        bcrypt.hash(req.body.password, 10, (err, hash) => {
+          const newUser = new loginSchema({
+            username: req.body.username,
+            password: hash,
+            email: req.body.email,
+            ballance: 100,
+            dateCreated: new Date(),
+            state: req.body.state,
+            cart: [],
+            ownedItems: [],
+          });
+          newUser.save((err, user) => {
+            res.status(200).send("Registration successful");
+          });
         });
       }
-    })
+    });
+  } else {
+    res.status(404).send("Missing data");
   }
 });
 
-api.post("/stock/remove", verifyToken, (req, res) => {
-  const { itemName } = req.body;
+api.get("/user/cart", (req, res) => {
+  if (!req.user) {
+    res.status(401).send("Unauthorized");
+  }
+  return res.status(200).json(req.user.cart);
+});
 
-  if (itemName === "") {
-    res.status(400).send("Error: itemName is empty");
-  } else {
-    stockSchema.findOneAndDelete({ name: itemName }, (err, user) => {
-      if (user) {
-        res.status(200).send("Stock removed");
+api.post("/user/cart/add", jsonParser, async (req, res) => {
+  if (!req.user) {
+    res.status(401).send("Unauthorized");
+  }
+  const body = req.body;
+  if (!body._id) {
+    return res.status(400).send("Bad request");
+  }
+  try {
+    const item = await stockSchema.findById(body._id);
+    if (!item) {
+      return res.status(404).send("Not found");
+    }
+    await req.user.cart.push(item);
+    await req.user.save((err, user) => {
+      if (err) {
+        return res.status(500).send(err.message);
       } else {
-        res.status(400).send("Error: item not found");
+        return res.status(200).send("Item added to cart");
       }
     });
+  } catch (err) {
+    return res.status(500).send(err.message);
   }
 });
 
-api.post("/stock/price", (req, res) => {
-  const { itemName, itemPrice } = req.body;
-
-  if (itemName === "" || itemPrice === "") {
-    res.status(400).send("Error: itemName and itemPrice are empty");
-  } else {
-    stockSchema.findOneAndUpdate(
-      { name: itemName },
-      { $set: { price: itemPrice } },
+api.post("/user/cart/remove", jsonParser, (req, res) => {
+  if (checkToken(req.headers.authorization)) {
+    loginSchema.findOne(
+      { username: req.headers.authorization },
       (err, user) => {
-        if (err) {
-          res.status(500).send(err);
+        if (user) {
+          stockSchema.findOne({ name: req.body.item }, (err, item) => {
+            if (user.cart.includes(item)) {
+              user.cart.splice(user.cart.indexOf(item), 1);
+              user.save((err, user) => {
+                res.status(200).send("Item removed from cart");
+              });
+            } else {
+              res.status(404).send("Item not in cart");
+            }
+          });
         } else {
-          res.status(200).send("Price updated");
+          res.status(404).send("User not found");
         }
       }
     );
+  } else {
+    res.status(401).send("Unauthorized");
   }
 });
 
-api.get("/stock/data", (req, res) => {
-  stockSchema.find({}, (err, items) => {
-    if (err) {
-      req.status(500).send(err);
-    } else {
-      for(item of items){
-        item.name = item.name.replace(/-/g, " ");
+api.delete("/user/cart/remove/all", async (req, res) => {
+  if (!req.user) {
+    return res.status(401).send("Unauthorized");
+  }
+  try {
+    await req.user.cart.splice(0, req.user.cart.length);
+    await req.user.save((err, user) => {
+      if (err) {
+        return res.status(500).send("Server error");
+      } else {
+        return res.status(200).send("Cart cleared");
       }
-      res.status(200).json(items);
-    }
-  });
+    });
+  } catch (err) {
+    return res.status(500).send(err.message);
+  }
 });
 
-//Get data about user by token
-api.get("/user/data", verifyToken, (req, res) => {
-  jwt.verify(req.token, process.env.JWT, (err, decoded) => {
-    if (err) {
-      res.status(401).send("Not logged in");
-    } else {
-      loginSchema.findOne({ username: decoded.username }, (err, user) => {
-        if (user) {
-          res.status(200).json({
-            username: user.username,
-            ballance: user.ballance,
-            email: user.email,
-            ownedItems: user.ownedItems,
-          });
-        } else {
-          res.status(400).send("Error: user not found");
-        }
-      });
-    }
+api.post("/user/purchase", (req, res) => {
+  if (!req.user) {
+    return res.status(401).send("Unauthorized");
+  } else if (req.user.cart.length === 0) {
+    return res.status(400).send("Cart is empty");
+  }
+  let total = 0;
+  req.user.cart.forEach((item) => {
+    total += item.price;
   });
-});
 
-api.post("/user/cart/add", verifyToken, (req, res) => {
-  const { itemName } = req.body;
-
-  if (itemName === "") {
-    res.status(400).send("Error: token, itemName are empty");
-  } else {
-    jwt.verify(req.token, process.env.JWT, function (err, decoded) {
-      if (!err) {
-        loginSchema.findOne({ username: decoded.username }, (err, user) => {
-          if (user) {
-            stockSchema.findOne({ name: itemName }, (err, item) => {
-              if (item) {
-                if (user.cart.includes(itemName)) {
-                  res.status(400).send("Error: item already in cart");
-                } else {
-                  loginSchema
-                    .findOneAndUpdate(
-                      { username: decoded.username },
-                      {
-                        $push: {
-                          cart: {
-                            name: itemName,
-                            price: item.price,
-                          },
-                        },
-                      }
-                    )
-                    .then(() => {
-                      res.status(200).send("Item added to cart");
-                    })
-                    .catch((err) => {
-                      res.status(500).send(err);
-                    });
-                }
-              } else {
-                res.status(400).send("Error: item not found");
-              }
-            });
-          } else {
-            res.status(400).send("Error: user not found");
-          }
+  if (req.user.ballance >= total) {
+    req.user.ballance -= total;
+    req.user.cart.forEach((item) => {
+      loginSchema.find({ state: item.state }, (err, users) => {
+        users.forEach(async (user) => {
+          user.ballance += item.price / users.length;
+          await user.save();
         });
+      });
+    });
+
+    req.user.ownedItems = req.user.ownedItems.concat(req.user.cart);
+    req.user.cart = [];
+    req.user.save((err, user) => {
+      if (err) {
+        return res.status(500).send("Server error");
+      }
+    });
+    let mailOptions = {
+      from: process.env.NODEMAILER_USER,
+      to: user.email,
+      subject: "Your purchase",
+      text:
+        "Thanks for your purchase" +
+        user.cart +
+        "Total: " +
+        total +
+        "€Era" +
+        "U can find your items in attached file",
+      attachments: [
+        {
+          filename: item.file,
+          path: "/stock/" + item.file,
+        },
+      ],
+    };
+
+    transporter.sendMail(mailOptions, (err, info) => {
+      if (err) {
+        res.send(err);
       } else {
-        res.status(401).send("Not logged in");
+        res.send(info);
       }
     });
   }
 });
-
-api.get("/user/cart/data", verifyToken, (req, res) => {
-  jwt.verify(req.token, process.env.JWT, (err, decoded) => {
-    if (err) {
-      res.status(401).send("Not logged in");
-    } else {
-      loginSchema.findOne({ username: decoded.username }, (err, user) => {
-        if (user) {
-          for(item of user.cart){
-            item.name = item.name.replace(/-/g, " ");
-          }
-          let totalPrice = 0;
-          user.cart.forEach((item) => {
-            totalPrice += item.price;
-          });
-          res.status(200).json(user.cart);
-        } else {
-          res.status(400).send("Error: user not found");
-        }
-      });
-    }
-  });
-});
-
-api.post("/user/cart/remove", verifyToken, (req, res) => {
-  const { itemName } = req.body;
-
-  if (itemName === "") {
-    res.status(400).send("Error: token and itemName are empty");
-  } else {
-    jwt.verify(req.token, process.env.JWT, function (err, decoded) {
-      if (!err) {
-        loginSchema.findOneAndUpdate(
-          { username: decoded.username },
-          {
-            $pull: {
-              cart: {
-                name: itemName,
-              },
-            },
-          },
-          (err, user) => {
-            if (err) {
-              res.status(500).send(err);
-            } else {
-              res.status(200).send("Item removed from cart");
-            }
-          }
-        );
-      } else {
-        res.status(401).send("Not logged in");
-      }
-    });
-  }
-});
-
-api.post("/user/cart/removeall", verifyToken, (req, res) => {
-  jwt.verify(req.token, process.env.JWT, function (err, decoded) {
-    if (!err) {
-      loginSchema.findOne({ username: decoded.username }, (err, user) => {
-        if (user) {
-          loginSchema.findOneAndUpdate(
-            { username: decoded.username },
-            {
-              $set: {
-                cart: [],
-              },
-            },
-            (err, user) => {
-              if (err) {
-                res.status(500).send(err);
-              } else {
-                res.status(200).send("Success");
-              }
-            }
-          );
-        } else {
-          res.status(404).send("User not found");
-        }
-      });
-    } else {
-      res.status(401).send("Wrong token");
-    }
-  });
-});
-
-api.post("/user/purchase", verifyToken, (req, res) => {
-  jwt.verify(req.token, process.env.JWT, function (err, decoded) {
-    if (!err) {
-      loginSchema.findOne({ username: decoded.username }, (err, user) => {
-        if (user) {
-          let totalPrice = 0;
-          user.cart.forEach((allItem) => {
-            totalPrice += allItem.price;
-          });
-          user.cart.forEach((item) => {
-            stockSchema.findOne({ name: item.name }, (err, stockItem) => { });
-          });
-          if (user.ballance >= totalPrice) {
-            loginSchema.findOneAndUpdate(
-              { username: decoded.username },
-              {
-                $inc: {
-                  ballance: -totalPrice,
-                },
-                $set: {
-                  cart: [],
-                  ownedItems: [
-                    ...user.ownedItems,
-                    ...user.cart.map((item) => item),
-                  ],
-                },
-              },
-              (err, user) => {
-                if (err) {
-                  res.status(500).send(err);
-                } else {
-                  res.status(200).send("Purchase successful");
-                }
-              }
-            );
-          } else {
-            res.status(400).send("Not enough money");
-          }
-        } else {
-          res.status(404).send("User not found");
-        }
-      });
-    } else {
-      res.status(401).send("Not logged in");
-    }
-  });
-});
-
-api.get("/stock/:item", (req, res) => {
-  const { item } = req.params;
-  if (item === "") {
-    res.status(400).send("Error: item is empty");
-  } else {
-    stockSchema.findOne({ name: item }, (err, item) => {
-      if (item) {
-        item.name = item.name.replace(/-/g, " ");
-        res.status(200).json(item);
-      } else {
-        res.status(404).send("Error: item not found");
-      }
-    });
-  }
-});
-
-api.get("/kafka", verifyToken, async (req, res) => {
-  jwt.verify(req.token, process.env.JWT, function (err, decoded) {
-    if (!err) {
-      loginSchema.findOne({ username: decoded.username }, (err, user) => {
-        if (user) {
-          res.status(200);
-        } else {
-          res.status(404).send("User not found");
-        }
-      });
-    } else {
-      res.status(401).send("Forbidden");
-    }
-  });
-});
-
-function verifyToken(req, res, next) {
-  const bearerHeader = req.headers["authorization"];
-  if (typeof bearerHeader !== "undefined") {
-    const bearer = bearerHeader.split(" ");
-    const bearerToken = bearer[1];
-    req.token = bearerToken;
-    next();
-  } else {
-    res.status(401).send("Not logged in");
-  }
-}
 
 api.listen(port, () => {
-  console.log("localhost/" + port);
+  console.log(`Example app listening at http://localhost:${port}`);
 });
