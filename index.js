@@ -16,11 +16,15 @@ require("dotenv").config();
 //BodyParser
 const bodyParser = require("body-parser");
 var jsonParser = bodyParser.json();
-var urlencodedParser = bodyParser.urlencoded({ extended: false });
+var urlencodedParser = bodyParser.urlencoded({
+  extended: false
+});
 
 //MongoDB
 const mongoose = require("mongoose");
-const { application } = require("express");
+const {
+  application
+} = require("express");
 mongoose.connect(
   "mongodb+srv://Vojta:fQpGpaNnhOfyCZFy@erashop.iijwj.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
 );
@@ -36,8 +40,8 @@ let transporter = nodemailer.createTransport({
   port: 465,
   secure: true,
   auth: {
-    user: process.env.NODEMAILER_USER,
-    pass: process.env.NODEMAILER_PASS,
+    user: "support@erasmustartup.eu",
+    pass: "ErasmuSupport12321",
   },
 });
 
@@ -56,14 +60,20 @@ api.use(async function verifyToken(req, res, next) {
   if (req.headers["authorization"]) {
     try {
       let token = req.headers["authorization"].split(" ")[1];
-      const { username } = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await loginSchema.findOne({ username: username });
+      const {
+        username
+      } = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await loginSchema.findOne({
+        username: username
+      });
       if (!user) {
         return res.status(404).json("Not found");
       }
       req.user = user;
     } catch (err) {
-      return res.status(500).json({ message: err });
+      return res.status(500).json({
+        message: err
+      });
     }
   }
   next();
@@ -71,7 +81,9 @@ api.use(async function verifyToken(req, res, next) {
 
 api.put("/login", jsonParser, (req, res) => {
   if (req.body.username && req.body.password) {
-    loginSchema.findOne({ username: req.body.username }, (err, user) => {
+    loginSchema.findOne({
+      username: req.body.username
+    }, (err, user) => {
       if (err) {
         res.status(500).send("Server error");
       } else {
@@ -82,15 +94,19 @@ api.put("/login", jsonParser, (req, res) => {
             if (err) {
               res.status(500).send("Server error");
             } else if (result) {
-              const token = jwt.sign(
-                { username: user.username },
-                process.env.JWT_SECRET,
-                { expiresIn: "1h" },
+              const token = jwt.sign({
+                  username: user.username
+                },
+                process.env.JWT_SECRET, {
+                  expiresIn: "1h"
+                },
                 (err, token) => {
                   if (err) {
                     res.status(500).send("Server error");
                   } else {
-                    res.status(200).json({ token });
+                    res.status(200).json({
+                      token
+                    });
                   }
                 }
               );
@@ -115,41 +131,61 @@ api.get("/user", (req, res) => {
     email: req.user.email,
     state: req.user.state,
     ballance: req.user.ballance,
+    ownedItems: req.user.ownedItems
   });
 });
 
-api.post("/user/new", jsonParser, (req, res) => {
-  if (
-    req.body.username &&
-    req.body.password &&
-    req.body.email &&
-    req.body.state
-  ) {
-    loginSchema.findOne({ username: req.body.username }, (err, user) => {
-      if (user) {
-        res.status(404).send("User found");
-      } else {
-        bcrypt.hash(req.body.password, 10, (err, hash) => {
-          const newUser = new loginSchema({
-            username: req.body.username,
-            password: hash,
-            email: req.body.email,
-            ballance: 100,
-            dateCreated: new Date(),
-            state: req.body.state,
-            cart: [],
-            ownedItems: [],
-          });
-          newUser.save((err, user) => {
-            res.status(200).send("Registration successful");
-          });
-        });
-      }
-    });
-  } else {
-    res.status(404).send("Missing data");
-  }
+api.delete("/user/delete/all", (req, res) => {
+  loginSchema.deleteMany({}, (err) => {
+    if (err) {
+      res.status(500).send("Server error");
+    } else {
+      res.status(200).send("Deleted");
+    }
+  });
 });
+
+api.post("/user/new", jsonParser, async (req, res) => {
+  const body = req.body
+  if (typeof body.username !== 'string' && typeof body.email !== 'string' && typeof body.state !== 'string') {
+    return res.status(400).send("Bad request")
+  }
+  const user = await loginSchema.findOne({
+    username: body.username
+  })
+  const email = await loginSchema.findOne({
+    email: body.email
+  })
+  if (user || email) {
+    return res.status(400).send("Data for user already exists")
+  }
+
+  let hashPas = Math.random().toString(36).slice(-12);
+  let password = bcrypt.hashSync(hashPas, 10)
+  let newUser = new loginSchema({
+    username: body.username,
+    password: password,
+    email: body.email,
+    state: body.state,
+    ballance: 100,
+  })
+  try {
+    await newUser.save()
+    let mailOptions = {
+      from: process.env.NODEMAILER_USER,
+      to: newUser.email,
+      context: {
+        name: newUser.username,
+        password: hashPas,
+      },
+      template: "welcome",
+    }
+    transporter.sendMail(mailOptions);
+    return res.status(201).send("User created")
+  } catch (err) {
+    return res.status(500).send(err.message)
+  }
+})
 
 api.get("/user/cart", (req, res) => {
   if (!req.user) {
@@ -186,11 +222,14 @@ api.post("/user/cart/add", jsonParser, async (req, res) => {
 
 api.post("/user/cart/remove", jsonParser, (req, res) => {
   if (checkToken(req.headers.authorization)) {
-    loginSchema.findOne(
-      { username: req.headers.authorization },
+    loginSchema.findOne({
+        username: req.headers.authorization
+      },
       (err, user) => {
         if (user) {
-          stockSchema.findOne({ name: req.body.item }, (err, item) => {
+          stockSchema.findOne({
+            name: req.body.item
+          }, (err, item) => {
             if (user.cart.includes(item)) {
               user.cart.splice(user.cart.indexOf(item), 1);
               user.save((err, user) => {
@@ -242,7 +281,9 @@ api.post("/user/purchase", (req, res) => {
   if (req.user.ballance >= total) {
     req.user.ballance -= total;
     req.user.cart.forEach((item) => {
-      loginSchema.find({ state: item.state }, (err, users) => {
+      loginSchema.find({
+        state: item.state
+      }, (err, users) => {
         users.forEach(async (user) => {
           user.ballance += item.price / users.length;
           await user.save();
@@ -261,19 +302,16 @@ api.post("/user/purchase", (req, res) => {
       from: process.env.NODEMAILER_USER,
       to: user.email,
       subject: "Your purchase",
-      text:
-        "Thanks for your purchase" +
+      text: "Thanks for your purchase" +
         user.cart +
         "Total: " +
         total +
         "€Era" +
         "U can find your items in attached file",
-      attachments: [
-        {
-          filename: item.file,
-          path: "/stock/" + item.file,
-        },
-      ],
+      attachments: [{
+        filename: item.file,
+        path: "/stock/" + item.file,
+      }, ],
     };
 
     transporter.sendMail(mailOptions, (err, info) => {

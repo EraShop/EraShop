@@ -5,7 +5,6 @@ const loginSchema = new mongoose.Schema({
   password: String,
   email: String,
   ballance: Number,
-  dateCreated: Date,
   state: String,
   token: String,
   cart: [],
