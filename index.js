@@ -84,7 +84,7 @@ api.use('/images', express.static('images'));
 
 api.get("/image/:item", async (req, res) => {
   if (req.params.item) {
-    if (fs.existsSync(`./images/${req.params.item}`)) {
+    if (fs.existsSync(`./images/${req.params.item}`) && fs.existsSync(`./images/${req.params.item}`.length > 0)) {
       let folderLength = fs.readdirSync(
         __dirname + "/images/" + req.params.item
       ).length;
@@ -96,7 +96,7 @@ api.get("/image/:item", async (req, res) => {
     } else {
       return res.status(404).json("No image found");
     }
-  }else{
+  } else{
     return res.status(404).json("No item found");
   }
 });
