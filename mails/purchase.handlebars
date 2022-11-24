@@ -1,0 +1,34 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Purchase</title>
+    <style>
+      @import
+      url('https://fonts.googleapis.com/css2?family=Raleway:wght@400;500&display=swap');
+      *{margin: 0; padding: 0;} .frame{background-color: #E8E8E8; width: 100%;
+      height: 40px;} .flex{display: flex; flex-direction: column; width: 360px;}
+      .main{text-align: center;} .flexTwo{align-items: center; justify-content:
+      center; margin:auto;} .special-text{font-size: 26px; margin-top: 50px;}
+      p{margin: 25px; font-family: "Raleway", sans; font-weight: 500;}
+    </style>
+  </head>
+  <body>
+    <div class="flex">
+      <div class="frame">
+      </div>
+      <div class="main">
+        <div class="text">
+          <p><strong>Thank you for your order</strong></p>
+          <p class="special-text">In case that you want to cancel this order,
+            just
+            <a href="mailto:support@erasmustartup.eu">write an email</a></p>
+        </div>
+      </div>
+      <div class="frame">
+        {{ items }}
+      </div>
+    </div>
+  </body>
+</html>
