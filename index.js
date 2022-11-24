@@ -18,17 +18,13 @@ require("dotenv").config();
 const bodyParser = require("body-parser");
 var jsonParser = bodyParser.json();
 var urlencodedParser = bodyParser.urlencoded({
-  extended: false
+  extended: false,
 });
 
 //MongoDB
 const mongoose = require("mongoose");
-const {
-  application
-} = require("express");
-mongoose.connect(
-  process.env.MONGO_URI,
-);
+const { application } = require("express");
+mongoose.connect(process.env.MONGO_URI);
 const db = mongoose.connection;
 db.on("error", console.error.bind(console, "Connection error:"));
 db.once("open", function () {
@@ -61,11 +57,9 @@ api.use(async function verifyToken(req, res, next) {
   if (req.headers["authorization"]) {
     try {
       let token = req.headers["authorization"].split(" ")[1];
-      const {
-        username
-      } = jwt.verify(token, process.env.JWT_SECRET);
+      const { username } = jwt.verify(token, process.env.JWT_SECRET);
       const user = await loginSchema.findOne({
-        username: username
+        username: username,
       });
       if (!user) {
         return res.status(404).json("Not found");
@@ -73,78 +67,89 @@ api.use(async function verifyToken(req, res, next) {
       req.user = user;
     } catch (err) {
       return res.status(500).json({
-        message: err
+        message: err,
       });
     }
   }
   next();
 });
 
-api.use('/images', express.static('images'));
+api.use("/images", express.static("images"));
 
 api.get("/image/:item/", async (req, res) => {
   if (req.params.item) {
-    if (fs.existsSync(`./images/${req.params.item}`) &&
-    fs.readdirSync(`./images/${req.params.item}`).length > 0) {
-      res.status(200).json(fs.readdirSync(`./images/${req.params.item}`).length);
+    if (
+      fs.existsSync(`./images/${req.params.item}`) &&
+      fs.readdirSync(`./images/${req.params.item}`).length > 0
+    ) {
+      res
+        .status(200)
+        .json(fs.readdirSync(`./images/${req.params.item}`).length);
     } else {
       return res.status(404).json("No image found");
     }
-  } else{
+  } else {
     return res.status(404).json("No item found");
   }
 });
 
-api.get("/image/:item/:photo", async(req, res) => {
+api.get("/image/:item/:photo", async (req, res) => {
   if (req.params.item && req.params.photo) {
     if (fs.existsSync(`./images/${req.params.item}/${req.params.photo}.jpg`)) {
-      res.sendFile(`${__dirname + "/images/" + req.params.item + "/" + req.params.photo}.jpg`);
+      res.sendFile(
+        `${
+          __dirname + "/images/" + req.params.item + "/" + req.params.photo
+        }.jpg`
+      );
     } else {
       return res.status(404).json("No image found");
     }
-  } else{
+  } else {
     return res.status(404).json("No item found");
   }
-})
+});
 
 api.put("/login", jsonParser, (req, res) => {
   if (req.body.username && req.body.password) {
-    loginSchema.findOne({
-      username: req.body.username
-    }, (err, user) => {
-      if (err) {
-        res.status(500).send("Server error");
-      } else {
-        if (!user) {
-          res.status(404).send("User not found");
+    loginSchema.findOne(
+      {
+        username: req.body.username,
+      },
+      (err, user) => {
+        if (err) {
+          res.status(500).send("Server error");
         } else {
-          bcrypt.compare(req.body.password, user.password, (err, result) => {
-            if (err) {
-              res.status(500).send("Server error");
-            } else if (result) {
-              const token = jwt.sign({
-                  username: user.username
-                },
-                process.env.JWT_SECRET, {
-                  expiresIn: "1h"
-                },
-                (err, token) => {
-                  if (err) {
-                    res.status(500).send("Server error");
-                  } else {
-                    res.status(200).json({
-                      token
-                    });
+          if (!user) {
+            res.status(404).send("User not found");
+          } else {
+            bcrypt.compare(req.body.password, user.password, (err, result) => {
+              if (err) {
+                res.status(500).send("Server error");
+              } else if (result) {
+                const token = jwt.sign(
+                  {
+                    username: user.username,
+                  },
+                  process.env.JWT_SECRET,
+                  {
+                    expiresIn: "1h",
+                  },
+                  (err, token) => {
+                    if (err) {
+                      res.status(500).send("Server error");
+                    } else {
+                      res.status(200).json(token);
+                    }
                   }
-                }
-              );
-            } else {
-              res.status(401).send("Wrong password");
-            }
-          });
+                );
+              } else {
+                res.status(401).send("Wrong password");
+              }
+            });
+          }
         }
       }
-    });
+    );
   } else {
     res.status(400).send("Bad request");
   }
@@ -159,7 +164,7 @@ api.get("/user", (req, res) => {
     email: req.user.email,
     state: req.user.state,
     ballance: req.user.ballance,
-    ownedItems: req.user.ownedItems
+    ownedItems: req.user.ownedItems,
   });
 });
 
@@ -174,31 +179,35 @@ api.delete("/user/delete/all", (req, res) => {
 });
 
 api.post("/user/new", jsonParser, async (req, res) => {
-  const body = req.body
-  if (typeof body.username !== 'string' && typeof body.email !== 'string' && typeof body.state !== 'string') {
-    return res.status(400).send("Bad request")
+  const body = req.body;
+  if (
+    typeof body.username !== "string" &&
+    typeof body.email !== "string" &&
+    typeof body.state !== "string"
+  ) {
+    return res.status(400).send("Bad request");
   }
   const user = await loginSchema.findOne({
-    username: body.username
-  })
+    username: body.username,
+  });
   const email = await loginSchema.findOne({
-    email: body.email
-  })
+    email: body.email,
+  });
   if (user || email) {
-    return res.status(400).send("Data for user already exists")
+    return res.status(400).send("Data for user already exists");
   }
 
   let hashPas = Math.random().toString(36).slice(-12);
-  let password = bcrypt.hashSync(hashPas, 10)
+  let password = bcrypt.hashSync(hashPas, 10);
   let newUser = new loginSchema({
     username: body.username,
     password: password,
     email: body.email,
     state: body.state,
     ballance: 100,
-  })
+  });
   try {
-    await newUser.save()
+    await newUser.save();
     let mailOptions = {
       from: process.env.NODEMAILER_USER,
       to: newUser.email,
@@ -207,13 +216,15 @@ api.post("/user/new", jsonParser, async (req, res) => {
         password: hashPas,
       },
       template: "welcome",
-    }
+    };
     transporter.sendMail(mailOptions);
-    return res.status(201).send("User created")
+    return res.status(201).send("User created");
   } catch (err) {
-    return res.status(500).send(err.message)
+    return res.status(500).send(err.message);
   }
-})
+});
+
+api.get("/", (req, res) => {});
 
 api.get("/user/cart", (req, res) => {
   if (!req.user) {
@@ -250,23 +261,27 @@ api.post("/user/cart/add", jsonParser, async (req, res) => {
 
 api.post("/user/cart/remove", jsonParser, (req, res) => {
   if (checkToken(req.headers.authorization)) {
-    loginSchema.findOne({
-        username: req.headers.authorization
+    loginSchema.findOne(
+      {
+        username: req.headers.authorization,
       },
       (err, user) => {
         if (user) {
-          stockSchema.findOne({
-            name: req.body.item
-          }, (err, item) => {
-            if (user.cart.includes(item)) {
-              user.cart.splice(user.cart.indexOf(item), 1);
-              user.save((err, user) => {
-                res.status(200).send("Item removed from cart");
-              });
-            } else {
-              res.status(404).send("Item not in cart");
+          stockSchema.findOne(
+            {
+              name: req.body.item,
+            },
+            (err, item) => {
+              if (user.cart.includes(item)) {
+                user.cart.splice(user.cart.indexOf(item), 1);
+                user.save((err, user) => {
+                  res.status(200).send("Item removed from cart");
+                });
+              } else {
+                res.status(404).send("Item not in cart");
+              }
             }
-          });
+          );
         } else {
           res.status(404).send("User not found");
         }
@@ -306,49 +321,85 @@ api.post("/user/purchase", (req, res) => {
     total += item.price;
   });
 
+  let boughtItems = [];
+
   if (req.user.ballance >= total) {
     req.user.ballance -= total;
     req.user.cart.forEach((item) => {
-      loginSchema.find({
-        state: item.state
-      }, (err, users) => {
-        users.forEach(async (user) => {
-          user.ballance += item.price / users.length;
-          await user.save();
-        });
-      });
+      boughtItems.push(item.name);
+      loginSchema.find(
+        {
+          state: item.state,
+        },
+        (err, users) => {
+          users.forEach(async (user) => {
+            user.ballance += item.price / users.length;
+            await user.save();
+          });
+        }
+      );
     });
 
     req.user.ownedItems = req.user.ownedItems.concat(req.user.cart);
+    let options = [];
+    console.log(req.user.cart);
+    for (let i = 0; i < req.user.cart.length; i++) {
+      options.push({
+        filename: req.user.cart[i].name,
+        path: __dirname + "/stock/" + req.user.cart[i]._id + "/" + req.user.cart[i].name + ".pdf",
+      });
+    }
     req.user.cart = [];
     req.user.save((err, user) => {
       if (err) {
-        return res.status(500).send("Server error");
+        return res.status(500).send(err.message);
       }
+      console.log(user);
+      let mailOptions = {
+        from: process.env.NODEMAILER_USER,
+        to: user.email,
+        subject: "Your purchase",
+        context: {
+          items: boughtItems,
+        },
+        template: "purchase",
+        attachments: options,
+      };
+      transporter.sendMail(mailOptions, (err, info) => {
+        if (err) {
+          return res.send(err);
+        } else {
+          return res.send(info);
+        }
+      });
     });
-    let mailOptions = {
-      from: process.env.NODEMAILER_USER,
-      to: user.email,
-      subject: "Your purchase",
-      text: "Thanks for your purchase" +
-        user.cart +
-        "Total: " +
-        total +
-        "€Era" +
-        "U can find your items in attached file",
-      attachments: [{
-        filename: item.file,
-        path: "/stock/" + item.file,
-      }, ],
-    };
+  }
+});
 
-    transporter.sendMail(mailOptions, (err, info) => {
-      if (err) {
-        res.send(err);
-      } else {
-        res.send(info);
-      }
+api.post("/stock/add", jsonParser, async (req, res) => {
+  const body = req.body;
+  if (!body.name || !body.price || !body.origin) {
+    return res.status(400).send("Bad request");
+  }
+  try {
+    const item = await stockSchema.findOne({
+      name: body.name,
     });
+    if (item) {
+      return res.status(409).send("Item already exists");
+    }
+    const newItem = new stockSchema({
+      name: body.name,
+      price: body.price,
+      origin: body.state,
+      description: body.description,
+      material: body.material,
+    });
+    await newItem.save();
+    fs.mkdirSync(__dirname + "/images/" + newItem._id);
+    return res.status(201).send("Item added to stock");
+  } catch (err) {
+    return res.status(500).send(err.message);
   }
 });
 
@@ -372,7 +423,6 @@ api.get("/stock/:id", async (req, res) => {
     return res.status(500).send(err.message);
   }
 });
-
 
 api.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`);
