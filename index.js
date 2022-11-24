@@ -96,6 +96,8 @@ api.get("/image/:item", async (req, res) => {
     } else {
       return res.status(404).json("No image found");
     }
+  }else{
+    return res.status(404).json("No item found");
   }
 });
 
