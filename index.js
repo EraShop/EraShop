@@ -10,6 +10,7 @@ const nodemailer = require("nodemailer");
 const morgan = require("morgan");
 const jwt = require("jsonwebtoken");
 const hbs = require("nodemailer-express-handlebars");
+const fs = require("fs");
 
 require("dotenv").config();
 
@@ -80,6 +81,23 @@ api.use(async function verifyToken(req, res, next) {
 });
 
 api.use('/images', express.static('images'));
+
+api.get("/image/:item", async (req, res) => {
+  if (req.params.item) {
+    if (fs.existsSync(`./images/${req.params.item}`)) {
+      let folderLength = fs.readdirSync(
+        __dirname + "/images/" + req.params.item
+      ).length;
+      for (let i = 0; i < folderLength; i++) {
+        return res.sendFile(
+          __dirname + "/images/" + req.params.item + "/" + i + ".jpg"
+        );
+      }
+    } else {
+      return res.status(404).json("No image found");
+    }
+  }
+});
 
 api.put("/login", jsonParser, (req, res) => {
   if (req.body.username && req.body.password) {
