@@ -84,7 +84,8 @@ api.use('/images', express.static('images'));
 
 api.get("/image/:item", async (req, res) => {
   if (req.params.item) {
-    if (fs.existsSync(`./images/${req.params.item}`) && fs.existsSync(`./images/${req.params.item}`.length > 0)) {
+    if (fs.existsSync(`./images/${req.params.item}`) &&
+    fs.readdirSync(`./images/${req.params.item}`).length > 0) {
       let folderLength = fs.readdirSync(
         __dirname + "/images/" + req.params.item
       ).length;
