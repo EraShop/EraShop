@@ -326,6 +326,28 @@ api.post("/user/purchase", (req, res) => {
   }
 });
 
+api.get("/stock/data", async (req, res) => {
+  try {
+    const items = await stockSchema.find();
+    return res.status(200).json(items);
+  } catch (err) {
+    return res.status(500).send(err.message);
+  }
+});
+
+api.get("/stock/:id", async (req, res) => {
+  try {
+    const item = await stockSchema.findById(req.params.id);
+    if (!item) {
+      return res.status(404).send("Item not found");
+    }
+    return res.status(200).json(item);
+  } catch (err) {
+    return res.status(500).send(err.message);
+  }
+});
+
+
 api.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`);
 });
