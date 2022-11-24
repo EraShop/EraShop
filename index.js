@@ -82,18 +82,11 @@ api.use(async function verifyToken(req, res, next) {
 
 api.use('/images', express.static('images'));
 
-api.get("/image/:item", async (req, res) => {
+api.get("/image/:item/", async (req, res) => {
   if (req.params.item) {
     if (fs.existsSync(`./images/${req.params.item}`) &&
     fs.readdirSync(`./images/${req.params.item}`).length > 0) {
-      let folderLength = fs.readdirSync(
-        __dirname + "/images/" + req.params.item
-      ).length;
-      for (let i = 0; i < folderLength; i++) {
-        return res.sendFile(
-          __dirname + "/images/" + req.params.item + "/" + i + ".jpg"
-        );
-      }
+      res.status(200).json(fs.readdirSync(`./images/${req.params.item}`).length);
     } else {
       return res.status(404).json("No image found");
     }
@@ -101,6 +94,18 @@ api.get("/image/:item", async (req, res) => {
     return res.status(404).json("No item found");
   }
 });
+
+api.get("/image/:item/:photo", async(req, res) => {
+  if (req.params.item && req.params.photo) {
+    if (fs.existsSync(`./images/${req.params.item}/${req.params.photo}.jpg`)) {
+      res.sendFile(`${__dirname + "/images/" + req.params.item + "/" + req.params.photo}.jpg`);
+    } else {
+      return res.status(404).json("No image found");
+    }
+  } else{
+    return res.status(404).json("No item found");
+  }
+})
 
 api.put("/login", jsonParser, (req, res) => {
   if (req.body.username && req.body.password) {
